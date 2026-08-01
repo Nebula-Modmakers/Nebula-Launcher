@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="20dp"
+    android:background="@drawable/bg_nebula_card"
+    android:orientation="vertical"
+    android:padding="26dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nebula"
+        android:textColor="#F5F7FF"
+        android:textSize="28sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="22dp"
+        android:text="Game utilities"
+        android:textColor="#AAB4E8"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/game_utility_launcher"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:background="@drawable/bg_nebula_accent_button"
+        android:text="Return to launcher"
+        android:textAllCaps="false"
+        android:textColor="#07111F"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <Button
+        android:id="@+id/game_utility_quit"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_nebula_button"
+        android:text="Quit game"
+        android:textAllCaps="false"
+        android:textColor="#F5F7FF"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/game_utility_close"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_nebula_button"
+        android:text="Close"
+        android:textAllCaps="false"
+        android:textColor="#AAB4E8"
+        android:textSize="15sp" />
+
+</LinearLayout>

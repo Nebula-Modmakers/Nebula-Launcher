@@ -1,0 +1,8 @@
+XZ for Java 1.7
+
+The package metadata supplied by the author declares this work to be in the
+public domain. The implementation includes work by Lasse Collin and public
+domain LZMA SDK code by Igor Pavlov.
+
+Project: https://tukaani.org/xz/java.html
+Source: https://git.tukaani.org/?p=xz-java.git

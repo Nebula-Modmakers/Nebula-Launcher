@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<style name="NebulaTheme" parent="android:Theme.Holo.NoActionBar">
+    <item name="android:windowBackground">@drawable/bg_nebula_screen</item>
+    <item name="android:windowIsTranslucent">false</item>
+    <item name="android:fontFamily">sans</item>
+    <item name="android:alertDialogTheme">@style/NebulaAlertDialogTheme</item>
+    <item name="android:alertDialogStyle">@style/NebulaAlertDialogStyle</item>
+</style>
+
+<style name="NebulaAlertDialogTheme" parent="android:style/Theme.Material.Dialog.Alert">
+    <item name="android:windowBackground">@android:color/transparent</item>
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:backgroundDimEnabled">true</item>
+    <item name="android:colorAccent">#63E6FF</item>
+    <item name="android:textColorPrimary">#F0F3FF</item>
+    <item name="android:textColorSecondary">#AAB4E8</item>
+    <item name="android:fontFamily">sans</item>
+    <item name="android:windowMinWidthMajor">65%</item>
+    <item name="android:windowMinWidthMinor">88%</item>
+    <item name="android:alertDialogStyle">@style/NebulaAlertDialogStyle</item>
+</style>
+
+<style name="NebulaAlertDialogStyle">
+    <item name="android:background">@drawable/bg_nebula_dialog</item>
+</style>
+</resources>

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "31090680542",
+    "project_id": "nebula-faa46",
+    "storage_bucket": "nebula-faa46.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:31090680542:android:d1b5ca0fcc799f5c2fd84f",
+        "android_client_info": {
+          "package_name": "dev.tates.nebula"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "31090680542-4r7dguqnmmu9uodpakvopkqd9odqmud1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "dev.tates.nebula",
+            "certificate_hash": "b826ea98f018efe39a4ac3c104786a905b62092d"
+          }
+        },
+        {
+          "client_id": "31090680542-vsekvm4as011un2qaau5lffgdefohe73.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCf_aXATJHun4AxNeUTtj3LeeuS6v-yVWc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "31090680542-vsekvm4as011un2qaau5lffgdefohe73.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

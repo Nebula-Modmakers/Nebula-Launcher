@@ -1,0 +1,36 @@
+# Gradle and Android build output
+.gradle/
+**/build/
+**/.cxx/
+local.properties
+**/local.properties
+
+# IDE and operating-system files
+.idea/
+.vscode/
+.vs/
+*.iml
+.DS_Store
+
+# Signing keys and local secrets
+.env
+.env.*
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+key.properties
+service-account*.json
+
+# Local tools, caches, and generated packages
+.dotnet-cli/
+.codex-tmp/
+.tools/
+.tools8/
+node_modules/
+outputs/
+reports/
+*.apk
+*.aab
+
