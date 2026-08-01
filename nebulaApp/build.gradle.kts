@@ -57,6 +57,33 @@ android {
         proguardFile("proguard-unity.txt")
     }
 
+    val releaseStorePath = providers.environmentVariable("NEBULA_RELEASE_STORE_FILE").orNull
+    val releaseStorePassword = providers.environmentVariable("NEBULA_RELEASE_STORE_PASSWORD").orNull
+    val releaseKeyAlias = providers.environmentVariable("NEBULA_RELEASE_KEY_ALIAS").orNull
+    val releaseKeyPassword = providers.environmentVariable("NEBULA_RELEASE_KEY_PASSWORD").orNull
+    if (listOf(releaseStorePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword)
+            .all { !it.isNullOrBlank() }) {
+        signingConfigs {
+            create("production") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            }
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            signingConfigs.findByName("production")?.let { signingConfig = it }
+            isMinifyEnabled = false
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/jni/CMakeLists.txt")
