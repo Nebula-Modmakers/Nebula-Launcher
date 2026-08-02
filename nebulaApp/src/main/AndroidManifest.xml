@@ -77,6 +77,7 @@
         android:name="dev.tates.nebula.PrivacyActivity"
         android:theme="@style/NebulaTheme"
         android:exported="false" />
+    <activity android:name="dev.tates.nebula.BugReportActivity" android:theme="@style/NebulaTheme" android:exported="false" />
     <provider
         android:name="androidx.core.content.FileProvider"
         android:authorities="${applicationId}.updates"

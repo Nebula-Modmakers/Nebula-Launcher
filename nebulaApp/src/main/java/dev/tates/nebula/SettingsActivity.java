@@ -80,6 +80,11 @@ public class SettingsActivity extends Activity {
                 new Intent(this, AboutActivity.class)));
         UiMotion.press(aboutNebula);
 
+        Button reportBug = findViewById(R.id.settings_report_bug);
+        reportBug.setOnClickListener(v -> UiMotion.open(this,
+                new Intent(this, BugReportActivity.class)));
+        UiMotion.press(reportBug);
+
         Switch verboseLaunch = findViewById(R.id.settings_verbose_launch);
         SharedPreferences launchPrefs = getSharedPreferences("nebula_launch", MODE_PRIVATE);
         verboseLaunch.setChecked(launchPrefs.getBoolean("verbose_launch", false));

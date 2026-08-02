@@ -139,7 +139,6 @@ public class SelectorActivity extends Activity {
     private EditText createUsernameInput;
     private EditText createEmailInput;
     private EditText createPasswordInput;
-    private EditText createActivationKeyInput;
     private String pendingVerificationUid;
     private String pendingVerificationEmail;
     private String pendingVerificationUsername;
@@ -798,10 +797,6 @@ public class SelectorActivity extends Activity {
             if (!isAccountActive(fields)) throw new Exception(DEACTIVATED_MESSAGE);
             String city = fetchUserCity();
             if (!firestoreBool(fields, "activated")) {
-                if (firestoreString(fields, "activationKey").isEmpty()) {
-                    runOnUiThread(() -> promptGoogleActivationKey(user, idToken, fields));
-                    return;
-                }
                 JSONObject activation = apiPost("/auth/activate", new JSONObject().put("city", city), idToken);
                 requireApiSuccess(activation);
             }
@@ -816,73 +811,6 @@ public class SelectorActivity extends Activity {
                 setAuthStatus(readableAuthError(error));
             });
         }
-    }
-
-    private void promptGoogleActivationKey(FirebaseUser user, String idToken, JSONObject fields) {
-        stopAuthLoading();
-        LinearLayout content = authShell();
-        TextView title = text("Activate Account", 26, 0xFFFFFFFF, Typeface.BOLD);
-        title.setGravity(Gravity.CENTER);
-        TextView subtitle = text("Google is verified. Enter your Nebula activation key to continue.",
-                14, 0xFFAAB4E8, Typeface.NORMAL);
-        subtitle.setGravity(Gravity.CENTER);
-        EditText activationKey = authInput("Activation key", false);
-        LinearLayout nav = new LinearLayout(this);
-        nav.setOrientation(LinearLayout.HORIZONTAL);
-        nav.setGravity(Gravity.CENTER);
-        Button back = secondaryAuthButton("Back");
-        Button activate = primaryAuthButton("Continue");
-        authStatusView = authStatus();
-
-        back.setOnClickListener(v -> showLoginUi(user.getEmail()));
-        activate.setOnClickListener(v -> {
-            String key = activationKey.getText().toString().trim().toUpperCase(Locale.US);
-            if (key.isEmpty()) {
-                setAuthStatus("Enter your activation key.");
-                return;
-            }
-            submitGoogleActivationKey(user, idToken, fields, key);
-        });
-        nav.addView(back, new LinearLayout.LayoutParams(0, dp(52), 1f));
-        LinearLayout.LayoutParams continueParams = new LinearLayout.LayoutParams(0, dp(52), 1f);
-        continueParams.leftMargin = dp(10);
-        nav.addView(activate, continueParams);
-
-        content.addView(title);
-        content.addView(withTopMargin(subtitle, dp(8)));
-        content.addView(withTopMargin(createStepProgress(4), dp(18)));
-        content.addView(withTopMargin(activationKey, dp(24)));
-        content.addView(withTopMargin(nav, dp(22)));
-        content.addView(withTopMargin(authStatusView, dp(14)));
-        setContentView(authRoot(content, 1));
-    }
-
-    private void submitGoogleActivationKey(FirebaseUser user, String idToken, JSONObject fields, String key) {
-        showAuthLoadingUi("Activating account", "Checking your activation key", 0xFF22D3EE);
-        new Thread(() -> {
-            try {
-                String city = fetchUserCity();
-                JSONObject registration = apiPost("/auth/register", new JSONObject()
-                        .put("name", firestoreString(fields, "name"))
-                        .put("username", firestoreString(fields, "username"))
-                        .put("activationKey", key)
-                        .put("city", city), idToken);
-                requireApiSuccess(registration);
-                JSONObject activation = apiPost("/auth/activate",
-                        new JSONObject().put("city", city), idToken);
-                requireApiSuccess(activation);
-                JSONObject session = createServerSession(idToken);
-                runOnUiThread(() -> finishGoogleUi(user, user.getEmail(),
-                        firestoreString(fields, "username"), firestoreString(fields, "name"),
-                        city, idToken, session));
-            } catch (Exception error) {
-                Log.w(TAG, "Google activation failed", error);
-                runOnUiThread(() -> {
-                    promptGoogleActivationKey(user, idToken, fields);
-                    setAuthStatus(readableAuthError(error));
-                });
-            }
-        }, "NebulaGoogleActivation").start();
     }
 
     private void promptGoogleProfileSetup(FirebaseUser user, String idToken) {
@@ -902,10 +830,8 @@ public class SelectorActivity extends Activity {
         name.setHintTextColor(0xFF6B7280);
         name.setBackground(roundedColor(0xFF202532, dp(18), 0x334B5563, dp(1)));
         EditText username = authInput("Username", false);
-        EditText activationKey = authInput("Activation key", false);
         form.addView(name);
         form.addView(withTopMargin(username, dp(8)));
-        form.addView(withTopMargin(activationKey, dp(8)));
         LinearLayout nav = new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         Button back = secondaryAuthButton("Back");
@@ -915,12 +841,11 @@ public class SelectorActivity extends Activity {
         create.setOnClickListener(v -> {
             String googleName = name.getText().toString().trim();
             String chosenUsername = username.getText().toString().trim();
-            String key = activationKey.getText().toString().trim().toUpperCase(Locale.US);
-            if (googleName.isEmpty() || chosenUsername.isEmpty() || key.isEmpty()) {
-                setAuthStatus("Enter a username and activation key.");
+            if (googleName.isEmpty() || chosenUsername.isEmpty()) {
+                setAuthStatus("Enter a username.");
                 return;
             }
-            submitGoogleProfileSetup(user, idToken, googleName, chosenUsername, key);
+            submitGoogleProfileSetup(user, idToken, googleName, chosenUsername);
         });
         nav.addView(back, new LinearLayout.LayoutParams(0, dp(52), 1f));
         LinearLayout.LayoutParams createParams = new LinearLayout.LayoutParams(0, dp(52), 1f);
@@ -937,7 +862,7 @@ public class SelectorActivity extends Activity {
     }
 
     private void submitGoogleProfileSetup(FirebaseUser user, String idToken, String name,
-            String username, String activationKey) {
+            String username) {
         showAuthLoadingUi("Creating account", "Setting up your Nebula profile", 0xFF22D3EE);
         new Thread(() -> {
             try {
@@ -945,7 +870,6 @@ public class SelectorActivity extends Activity {
                 JSONObject registration = apiPost("/auth/register", new JSONObject()
                         .put("name", name)
                         .put("username", username)
-                        .put("activationKey", activationKey)
                         .put("city", city), idToken);
                 requireApiSuccess(registration);
                 JSONObject activation = apiPost("/auth/activate", new JSONObject().put("city", city), idToken);
@@ -1097,7 +1021,7 @@ public class SelectorActivity extends Activity {
 
     private void showCreateAccountUi(int step, int slideDirection) {
         stopAuthLoading();
-        createAccountStep = Math.max(0, Math.min(step, 5));
+        createAccountStep = Math.max(0, Math.min(step, 4));
         LinearLayout content = authShell();
         TextView title = text("Create Account", 26, 0xFFFFFFFF, Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
@@ -1109,7 +1033,7 @@ public class SelectorActivity extends Activity {
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setGravity(Gravity.CENTER);
         Button back = secondaryAuthButton(createAccountStep == 0 ? "Back" : "Previous");
-        Button next = primaryAuthButton(createAccountStep == 5 ? "Create Account" : "Next");
+        Button next = primaryAuthButton(createAccountStep == 4 ? "Create Account" : "Next");
         authStatusView = authStatus();
 
         back.setOnClickListener(v -> {
@@ -1120,7 +1044,7 @@ public class SelectorActivity extends Activity {
             }
         });
         next.setOnClickListener(v -> {
-            if (createAccountStep < 5) {
+            if (createAccountStep < 4) {
                 validateCreateStepThenAdvance(createAccountStep);
             } else {
                 registerNebulaAccount();
@@ -1151,8 +1075,6 @@ public class SelectorActivity extends Activity {
                 return "What's your email?";
             case 3:
                 return "Secure the account.";
-            case 4:
-                return "Enter your activation key.";
             default:
                 return "Review your account before creating it.";
         }
@@ -1186,17 +1108,10 @@ public class SelectorActivity extends Activity {
                 }
                 addReusableView(wrap, createPasswordInput);
                 break;
-            case 4:
-                if (createActivationKeyInput == null) {
-                    createActivationKeyInput = authInput("Activation key", false);
-                }
-                addReusableView(wrap, createActivationKeyInput);
-                break;
             default:
                 wrap.addView(reviewRow("Name", valueOrPlaceholder(createNameInput, "Not provided")));
                 wrap.addView(reviewRow("Username", valueOrPlaceholder(createUsernameInput, "Not provided")));
                 wrap.addView(reviewRow("Email", valueOrPlaceholder(createEmailInput, "Not provided")));
-                wrap.addView(reviewRow("Activation Key", valueOrPlaceholder(createActivationKeyInput, "Not provided")));
                 wrap.addView(privacyAgreementView());
                 break;
         }
@@ -1206,7 +1121,7 @@ public class SelectorActivity extends Activity {
     private LinearLayout createStepProgress(int activeStep) {
         LinearLayout progress = new LinearLayout(this);
         progress.setOrientation(LinearLayout.HORIZONTAL);
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 5; i++) {
             View dot = new View(this);
             dot.setBackground(roundedColor(i <= activeStep ? 0xFF22D3EE : 0x553A4157, dp(4), Color.TRANSPARENT, 0));
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, dp(5), 1f);
@@ -1469,9 +1384,7 @@ public class SelectorActivity extends Activity {
         String username = valueOrPlaceholder(createUsernameInput, "").trim();
         String email = valueOrPlaceholder(createEmailInput, "").trim();
         String password = valueOrPlaceholder(createPasswordInput, "");
-        String activationKey = valueOrPlaceholder(createActivationKeyInput, "").trim().toUpperCase(Locale.US);
-
-        if (name.isEmpty() || username.isEmpty() || email.isEmpty() || password.isEmpty() || activationKey.isEmpty()) {
+        if (name.isEmpty() || username.isEmpty() || email.isEmpty() || password.isEmpty()) {
             setAuthStatus("Finish every step first.");
             return;
         }
@@ -1497,7 +1410,6 @@ public class SelectorActivity extends Activity {
             JSONObject registration = apiPost("/auth/register", new JSONObject()
                     .put("name", name)
                     .put("username", username)
-                    .put("activationKey", activationKey)
                     .put("city", city), idToken);
             requireApiSuccess(registration);
 
@@ -1539,9 +1451,6 @@ public class SelectorActivity extends Activity {
                     return;
                 }
                 showCreateAccountUi(4, 1);
-                return;
-            case 4:
-                validateActivationKey();
                 return;
             default:
                 showCreateAccountUi(Math.min(step + 1, 5), 1);
@@ -1675,15 +1584,6 @@ public class SelectorActivity extends Activity {
         }
     }
 
-    private void validateActivationKey() {
-        String activationKey = valueOrPlaceholder(createActivationKeyInput, "").trim().toUpperCase(Locale.US);
-        if (activationKey.isEmpty()) {
-            setAuthStatus("Enter your activation key.");
-            return;
-        }
-        showCreateAccountUi(5, 1);
-    }
-
     private void startPendingEmailVerificationCheck() {
         if (pendingVerificationIdToken == null || pendingVerificationIdToken.isEmpty()) {
             showLoginUi(pendingVerificationEmail);
@@ -1815,11 +1715,7 @@ public class SelectorActivity extends Activity {
             }
 
             boolean activated = firestoreBool(fields, "activated");
-            String activationKey = firestoreString(fields, "activationKey");
             if (!activated) {
-                if (activationKey.isEmpty()) {
-                    throw new Exception("Activation key missing");
-                }
                 JSONObject activation = apiPost("/auth/activate",
                         new JSONObject().put("city", city), idToken);
                 requireApiSuccess(activation);
@@ -1831,9 +1727,7 @@ public class SelectorActivity extends Activity {
             boolean finalActivated = activated;
             JSONObject serverSession = createServerSession(idToken);
             runOnUiThread(() -> {
-                long elapsed = System.currentTimeMillis() - loginStartedAt;
-                long remaining = Math.max(0L, 3000L - elapsed);
-                authUiHandler.postDelayed(() -> {
+                authUiHandler.post(() -> {
                     stopAuthLoading();
                     saveNebulaSession(uid, finalEmail, username, name, city, idToken, refreshToken,
                             finalActivated, serverSession.optString("sessionToken", ""),
@@ -1841,7 +1735,7 @@ public class SelectorActivity extends Activity {
                     Toast.makeText(this, "Logged in successfully.", Toast.LENGTH_SHORT).show();
                     showLauncherUiWithSupernovaReveal();
                     promptForStorageAccessAfterLogin();
-                }, remaining);
+                });
             });
         });
     }
@@ -2026,7 +1920,6 @@ public class SelectorActivity extends Activity {
         createUsernameInput = null;
         createEmailInput = null;
         createPasswordInput = null;
-        createActivationKeyInput = null;
         authStatusView = null;
         createAccountStep = 0;
         clearPendingVerification();
@@ -2765,11 +2658,17 @@ public class SelectorActivity extends Activity {
 
         seeMoreLastErrorButton = darkButton("See more");
         seeMoreLastErrorButton.setOnClickListener(v -> showLastErrorDetails());
+        Button reportErrorButton = darkButton("Report bug");
+        reportErrorButton.setOnClickListener(v -> startActivity(new Intent(this, BugReportActivity.class)
+                .putExtra(BugReportActivity.EXTRA_ERROR, lastErrorFullText)));
         clearLastErrorButton = darkButton("Clear");
         clearLastErrorButton.setOnClickListener(v -> clearLastError());
 
         LinearLayout.LayoutParams seeMoreParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
         buttons.addView(seeMoreLastErrorButton, seeMoreParams);
+        LinearLayout.LayoutParams reportParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
+        reportParams.leftMargin = dp(8);
+        buttons.addView(reportErrorButton, reportParams);
         LinearLayout.LayoutParams clearParams = new LinearLayout.LayoutParams(0, dp(42), 1f);
         clearParams.leftMargin = dp(8);
         buttons.addView(clearLastErrorButton, clearParams);

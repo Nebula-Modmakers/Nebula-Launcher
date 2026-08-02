@@ -267,6 +267,17 @@
             android:textSize="12sp" />
     </LinearLayout>
 
+    <Button
+        android:id="@+id/settings_report_bug"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_nebula_button"
+        android:text="Report a bug"
+        android:textAllCaps="false"
+        android:textColor="#F0F3FF"
+        android:textStyle="bold" />
+
         </LinearLayout>
     </ScrollView>
 
