@@ -38,6 +38,7 @@ android {
 
     buildFeatures {
         prefab = true
+        buildConfig = true
     }
 
     compileOptions {
@@ -49,8 +50,8 @@ android {
         minSdk = 26
         targetSdk = 36
         applicationId = "dev.tates.nebula"
-        versionCode = 8
-        versionName = "1.2.2"
+        versionCode = 9
+        versionName = "1.3.0"
         ndk {
             abiFilters.add("arm64-v8a")
         }
@@ -78,7 +79,11 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            buildConfigField("boolean", "DEBUG_MODE", "true")
+        }
         getByName("release") {
+            buildConfigField("boolean", "DEBUG_MODE", "false")
             signingConfigs.findByName("production")?.let { signingConfig = it }
             isMinifyEnabled = false
         }

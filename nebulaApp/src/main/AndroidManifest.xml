@@ -47,6 +47,7 @@
         android:name="dev.allofus.fusioncore.BootstrapActivity"
         android:theme="@style/NebulaTheme"
         android:launchMode="singleTask"
+        android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden"
         android:exported="false" />
     <activity
         android:name="dev.tates.nebula.SettingsActivity"

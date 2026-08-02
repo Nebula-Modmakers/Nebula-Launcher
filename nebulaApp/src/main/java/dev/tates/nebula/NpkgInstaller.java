@@ -371,7 +371,8 @@ public final class NpkgInstaller {
                 || !"arm64-v8a".equals(required(platform, "architecture"))
                 || !"fusioncore".equals(required(platform, "runtime"))
                 || !GameCompatibility.AMONG_US_PACKAGE.equals(required(platform, "gamePackage"))
-                || !GameCompatibility.REQUIRED_VERSION.equals(required(platform, "gameVersion"))) {
+                || (!BuildConfig.DEBUG_MODE
+                    && !GameCompatibility.REQUIRED_VERSION.equals(required(platform, "gameVersion")))) {
             throw new IOException("Package is not compatible with this Android runtime");
         }
         JSONObject install = manifest.getJSONObject("install");

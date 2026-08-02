@@ -7,8 +7,10 @@ import android.os.Build;
 
 public final class GameCompatibility {
     public static final String AMONG_US_PACKAGE = "com.innersloth.spacemafia";
-    public static final String REQUIRED_VERSION = "2026.3.31";
-    public static final long REQUIRED_VERSION_CODE = 6804L;
+    // Among Us brands this release as 17.4a in-game, while Android exposes
+    // 2026.6.5 as the package version name for the same build (7045).
+    public static final String REQUIRED_VERSION = "2026.6.5";
+    public static final long REQUIRED_VERSION_CODE = 7045L;
 
     private GameCompatibility() {}
 

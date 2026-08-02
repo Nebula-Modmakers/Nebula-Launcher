@@ -30,6 +30,7 @@ import android.widget.Toast;
 
 import dev.tates.nebula.R;
 import dev.tates.nebula.GameCompatibility;
+import dev.tates.nebula.BuildConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -72,6 +73,7 @@ public class BootstrapActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         hideSystemBars(this);
         setContentView(R.layout.activity_bootstrap);
         launchStartedAt = System.currentTimeMillis();
@@ -98,10 +100,14 @@ public class BootstrapActivity extends Activity {
                     GameCompatibility.getPackageInfo(this, targetPackage);
             if (GameCompatibility.AMONG_US_PACKAGE.equals(targetPackage)
                     && !GameCompatibility.isSupported(packageInfo)) {
-                failAndFinish("Nebula requires Among Us "
-                        + GameCompatibility.REQUIRED_VERSION + "; installed version is "
-                        + GameCompatibility.getVersionName(packageInfo) + ".", null);
-                return;
+                if (!BuildConfig.DEBUG_MODE) {
+                    failAndFinish("Nebula requires Among Us 17.4a; installed Android package version is "
+                            + GameCompatibility.getVersionName(packageInfo) + ".", null);
+                    return;
+                }
+                Log.w(TAG, "Debug compatibility override: bootstrapping " + targetPackage
+                        + " " + GameCompatibility.getVersionName(packageInfo) + " ("
+                        + GameCompatibility.getVersionCode(packageInfo) + ").");
             }
         } catch (android.content.pm.PackageManager.NameNotFoundException e) {
             failAndFinish("Target package is not installed: " + targetPackage, e);

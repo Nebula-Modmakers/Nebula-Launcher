@@ -3,6 +3,7 @@ package dev.tates.nebula;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
+import android.util.Log;
 
 import org.json.JSONObject;
 
@@ -41,6 +42,10 @@ final class NebulaCompatManager {
 
     static synchronized File ensureInstalled(Context context, String sessionToken) throws Exception {
         File installed = getInstalledFile(context);
+        if (BuildConfig.DEBUG_MODE && installed.isFile()) {
+            Log.i("NebulaCompat", "debugMode=true; preserving the local NebulaCompat.dll");
+            return installed;
+        }
         SharedPreferences state = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE);
         String cachedHash = state.getString("sha256", "");
         boolean cachedValid = installed.isFile() && isSha256(cachedHash)

@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 
@@ -60,11 +61,13 @@ public class UnityPlayerHooks {
         Log.i(TAG, "Found UnityPlayer class: " + unityPlayerClass.getName());
 
         ArrayList<Field> activityFields = new ArrayList<>();
-        for (Field field : unityPlayerClass.getFields()) {
-            if (Activity.class.isAssignableFrom(field.getType())) {
+        for (Field field : unityPlayerClass.getDeclaredFields()) {
+            // Unity's fields are concrete Activity references. Match exactly here: the
+            // process-wide ClassLoader hook can make broader assignability checks unsafe
+            // while the game loader is still resolving Unity's remaining field types.
+            if (field.getType() == Activity.class) {
                 field.setAccessible(true);
                 activityFields.add(field);
-                break;
             }
         }
 
@@ -103,8 +106,10 @@ public class UnityPlayerHooks {
                     for (Field field : activityFields) {
                         try {
                             Log.i(TAG, "Setting activity field: " + field.getName());
-                            field.set(callFrame.thisObject, activity);
-                        } catch (IllegalAccessException e) {
+                            field.set(Modifier.isStatic(field.getModifiers())
+                                    ? null
+                                    : callFrame.thisObject, activity);
+                        } catch (IllegalAccessException | IllegalArgumentException e) {
                             throw new RuntimeException("Failed to set activity field: " + field.getName(), e);
                         }
                     }

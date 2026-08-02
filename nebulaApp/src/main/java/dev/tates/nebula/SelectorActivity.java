@@ -151,6 +151,7 @@ public class SelectorActivity extends Activity {
     private String pendingAuthMessage;
     private Typeface orbitronTypeface;
     private boolean gameImportPromptShown;
+    private boolean launchRequestInFlight;
     private AlertDialog blockingLoadingDialog;
     private FirebaseAuth firebaseAuth;
     private CredentialManager credentialManager;
@@ -3023,6 +3024,7 @@ public class SelectorActivity extends Activity {
             FusionRuntimeManager.ensureModDirectories(this);
             ProfileManager.stageActive(this);
         } catch (IOException e) {
+            launchRequestInFlight = false;
             Log.e(TAG, "Failed to stage the active profile before launch", e);
             new NebulaDialogBuilder(this)
                     .setTitle("Could not prepare mods")
@@ -3044,18 +3046,25 @@ public class SelectorActivity extends Activity {
         if (!requireSupportedAmongUsVersion(packageName)) {
             return;
         }
+        if (launchRequestInFlight) {
+            Log.w(TAG, "Ignoring duplicate launch request while bootstrap is being prepared.");
+            return;
+        }
+        launchRequestInFlight = true;
         showBlockingLoading("Preparing compatibility", "Checking Nebula compatibility support…");
         new Thread(() -> {
             try {
                 NebulaCompatManager.ensureInstalled(this,
                         SecureTokenStore.get(nebulaAuthPrefs(), "serverSessionToken"));
                 runOnUiThread(() -> {
+                    launchRequestInFlight = false;
                     hideBlockingLoading();
                     launchBootstrap(packageName);
                 });
             } catch (Exception error) {
                 Log.w(TAG, "Could not prepare NebulaCompat for launch", error);
                 runOnUiThread(() -> {
+                    launchRequestInFlight = false;
                     hideBlockingLoading();
                     new NebulaDialogBuilder(this)
                             .setTitle("Compatibility download failed")
@@ -3087,7 +3096,10 @@ public class SelectorActivity extends Activity {
             return false;
         }
 
-        if (GameCompatibility.isSupported(packageInfo)) {
+        if (BuildConfig.DEBUG_MODE) {
+            Log.w(TAG, "Debug compatibility override: allowing Among Us "
+                    + GameCompatibility.getVersionName(packageInfo) + " ("
+                    + GameCompatibility.getVersionCode(packageInfo) + ").");
             return true;
         }
 
@@ -3095,12 +3107,10 @@ public class SelectorActivity extends Activity {
         String action = GameCompatibility.requiredAction(installedVersion);
         new NebulaDialogBuilder(this)
                 .setTitle("Unsupported Among Us version")
-                .setMessage("Nebula supports Among Us "
-                        + GameCompatibility.REQUIRED_VERSION
-                        + " only. You currently have "
-                        + (installedVersion.isEmpty() ? "an unknown version" : installedVersion)
-                        + ". Please " + action + " Among Us to "
-                        + GameCompatibility.REQUIRED_VERSION + " before launching.")
+                .setMessage("Nebula supports Among Us 17.4a (Android build 7045) only. "
+                        + "You currently have package version "
+                        + (installedVersion.isEmpty() ? "unknown" : installedVersion)
+                        + ". Please " + action + " Among Us before launching.")
                 .setPositiveButton("Open Play Store", (dialog, which) -> openAmongUsStore())
                 .setNegativeButton("Cancel", null)
                 .show();
