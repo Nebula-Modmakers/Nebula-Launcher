@@ -18,6 +18,8 @@ import android.widget.TextView;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 public class UpdatesActivity extends Activity {
@@ -42,19 +44,85 @@ public class UpdatesActivity extends Activity {
     private void check() {
         content.removeAllViews(); ProgressBar progress = new ProgressBar(this); content.addView(progress, centered(dp(48), dp(48)));
         TextView status = label("Checking the Nebula API…", 14, 0xFFAAB4E8, false); status.setGravity(Gravity.CENTER); content.addView(status, top(dp(12)));
-        executor.execute(() -> { try { AppUpdateClient.Release release = AppUpdateClient.check(this); runOnUiThread(() -> showResult(release)); } catch (Exception e) { runOnUiThread(() -> showError(e.getMessage())); } });
+        executor.execute(() -> {
+            AppUpdateClient.Release appRelease = null;
+            List<ModUpdate> modUpdates = new ArrayList<>();
+            String appError = null;
+            String modError = null;
+            try { appRelease = AppUpdateClient.check(this); }
+            catch (Exception error) { appError = error.getMessage(); }
+            try { modUpdates = findModUpdates(ModCatalogClient.fetchCatalog()); }
+            catch (Exception error) { modError = error.getMessage(); }
+            AppUpdateClient.Release finalAppRelease = appRelease;
+            List<ModUpdate> finalModUpdates = modUpdates;
+            String finalAppError = appError;
+            String finalModError = modError;
+            runOnUiThread(() -> showResult(finalAppRelease, finalModUpdates, finalAppError, finalModError));
+        });
     }
 
-    private void showResult(AppUpdateClient.Release release) {
+    private void showResult(AppUpdateClient.Release release, List<ModUpdate> modUpdates,
+            String appError, String modError) {
         content.removeAllViews();
-        if (release == null) { card("Nebula is up to date", "There are no app updates available.", null); }
+        if (appError != null) {
+            card("Could not check Nebula", safe(appError), null);
+        } else if (release == null) { card("Nebula is up to date", "There are no app updates available.", null); }
         else {
             String body = "Version " + release.versionName + " is available (" + formatSize(release.size) + ").";
             if (!release.notes.trim().isEmpty()) body += "\n\n" + release.notes.trim();
             Button update = button("Download and install"); update.setOnClickListener(v -> install(update, release)); card("Nebula " + release.versionName, body, update);
         }
-        card("Mod updates", "Mod update checks will appear here in a later release.", null);
+        if (modError != null) {
+            card("Could not check mod updates", safe(modError), null);
+        } else if (modUpdates.isEmpty()) {
+            card("Mods are up to date", "All installed Mod Store packages use their latest available versions.", null);
+        } else {
+            for (ModUpdate update : modUpdates) {
+                Button openStore = button("Open Mod Store");
+                openStore.setOnClickListener(view -> startActivity(
+                        new Intent(this, ModStoreActivity.class)
+                                .putExtra(ModStoreActivity.EXTRA_MOD_ID, update.mod.id)));
+                card(update.mod.name + " " + update.mod.latestVersion,
+                        "Update recommended: " + update.installedVersion + " → "
+                                + update.mod.latestVersion + ".", openStore);
+            }
+        }
         Button refresh = button("Check again"); refresh.setOnClickListener(v -> check()); content.addView(refresh, top(dp(16)));
+    }
+
+    private List<ModUpdate> findModUpdates(List<ModCatalogClient.Mod> mods) {
+        List<ModUpdate> updates = new ArrayList<>();
+        for (ModCatalogClient.Mod mod : mods) {
+            String installed = NpkgInstaller.getInstalledVersion(this, mod.packageId);
+            if (installed == null || installed.equals(mod.latestVersion)) continue;
+            if (isNewerVersion(mod.latestVersion, installed)) updates.add(new ModUpdate(mod, installed));
+        }
+        return updates;
+    }
+
+    private boolean isNewerVersion(String available, String installed) {
+        String[] availableParts = available.split("[^0-9]+");
+        String[] installedParts = installed.split("[^0-9]+");
+        int count = Math.max(availableParts.length, installedParts.length);
+        for (int i = 0; i < count; i++) {
+            long left = i < availableParts.length && !availableParts[i].isEmpty()
+                    ? Long.parseLong(availableParts[i]) : 0L;
+            long right = i < installedParts.length && !installedParts[i].isEmpty()
+                    ? Long.parseLong(installedParts[i]) : 0L;
+            if (left != right) return left > right;
+        }
+        boolean availablePrerelease = available.contains("-");
+        boolean installedPrerelease = installed.contains("-");
+        return installedPrerelease && !availablePrerelease;
+    }
+
+    private static final class ModUpdate {
+        final ModCatalogClient.Mod mod;
+        final String installedVersion;
+        ModUpdate(ModCatalogClient.Mod mod, String installedVersion) {
+            this.mod = mod;
+            this.installedVersion = installedVersion;
+        }
     }
 
     private void install(Button button, AppUpdateClient.Release release) {
@@ -136,3 +204,4 @@ public class UpdatesActivity extends Activity {
     @Override public void onBackPressed() { UiMotion.finish(this, root); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }
+

@@ -44,11 +44,15 @@ public final class NpkgInstaller {
     }
 
     public static boolean isManagedSharedFile(Context context, File sharedFile) {
+        return getManagedPackageId(context, sharedFile) != null;
+    }
+
+    public static String getManagedPackageId(Context context, File sharedFile) {
         try {
             String name = sharedFile.getName();
             File recordDir = getRecordDir(context);
             File[] records = recordDir.listFiles(file -> file.isFile() && file.getName().endsWith(".json"));
-            if (records == null) return false;
+            if (records == null) return null;
             for (File recordFile : records) {
                 JSONObject record = new JSONObject(Utilities.readTextFile(recordFile, MAX_MANIFEST_BYTES));
                 JSONArray files = record.optJSONArray("files");
@@ -59,12 +63,12 @@ public final class NpkgInstaller {
                     String relative = destination.substring("plugins/".length());
                     String topLevel = relative.contains("/")
                             ? relative.substring(0, relative.indexOf('/')) : relative;
-                    if (name.equals(topLevel)) return true;
+                    if (name.equals(topLevel)) return record.optString("id", null);
                 }
             }
         } catch (Exception ignored) {
         }
-        return false;
+        return null;
     }
 
     public static void uninstall(Context context, String packageId) throws Exception {
@@ -512,3 +516,4 @@ public final class NpkgInstaller {
         }
     }
 }
+

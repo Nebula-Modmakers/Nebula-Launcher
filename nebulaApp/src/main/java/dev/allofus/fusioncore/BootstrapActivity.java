@@ -76,6 +76,10 @@ public class BootstrapActivity extends Activity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
         hideSystemBars(this);
         setContentView(R.layout.activity_bootstrap);
+        TextView bootstrapTitle = findViewById(R.id.bootstrap_title);
+        bootstrapTitle.setText(BuildConfig.DEBUG_MODE ? "NEBULA  DEBUG" : "NEBULA");
+        TextView bootstrapVersion = findViewById(R.id.bootstrap_version);
+        bootstrapVersion.setText(BuildConfig.VERSION_NAME + "  •  NATIVE ANDROID");
         launchStartedAt = System.currentTimeMillis();
         statusView = findViewById(R.id.bootstrap_status);
         progressDetailsView = findViewById(R.id.bootstrap_progress_details);
@@ -101,7 +105,8 @@ public class BootstrapActivity extends Activity {
             if (GameCompatibility.AMONG_US_PACKAGE.equals(targetPackage)
                     && !GameCompatibility.isSupported(packageInfo)) {
                 if (!BuildConfig.DEBUG_MODE) {
-                    failAndFinish("Nebula requires Among Us 17.4a; installed Android package version is "
+                    failAndFinish("Nebula requires Among Us package version 2026.6.5 "
+                            + "(build 7045); installed Android package version is "
                             + GameCompatibility.getVersionName(packageInfo) + ".", null);
                     return;
                 }
@@ -354,7 +359,6 @@ public class BootstrapActivity extends Activity {
             }
             decor.addView(overlay, new ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-            View utilityTrigger = attachGameUtilityTrigger(gameActivity, decor);
 
             Handler handler = new Handler(Looper.getMainLooper());
             final boolean[] interopGenerationMarked = {false};
@@ -395,9 +399,6 @@ public class BootstrapActivity extends Activity {
                         }
                         icon.clearAnimation();
                         decor.removeView(overlay);
-                        // Unity can add or reorder its SurfaceView after onCreate. Restore the
-                        // invisible gesture target above it once the startup overlay is gone.
-                        utilityTrigger.bringToFront();
                         return;
                     }
                     handler.postDelayed(this, 300L);
@@ -425,95 +426,6 @@ public class BootstrapActivity extends Activity {
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         }
-    }
-
-    private View attachGameUtilityTrigger(Activity gameActivity, ViewGroup decor) {
-        View existing = decor.findViewWithTag("nebula-game-utility-trigger");
-        if (existing != null) {
-            return existing;
-        }
-
-        View trigger = new View(gameActivity);
-        trigger.setTag("nebula-game-utility-trigger");
-        trigger.setBackgroundColor(Color.TRANSPARENT);
-        trigger.setContentDescription("Nebula utility menu");
-        int targetSize = Math.round(96f * gameActivity.getResources().getDisplayMetrics().density);
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(targetSize, targetSize);
-        params.gravity = Gravity.BOTTOM | Gravity.END;
-        decor.addView(trigger, params);
-
-        final long[] taps = new long[3];
-        trigger.setOnTouchListener((view, event) -> {
-            if (event.getActionMasked() != MotionEvent.ACTION_UP) {
-                return true;
-            }
-            taps[0] = taps[1];
-            taps[1] = taps[2];
-            taps[2] = android.os.SystemClock.uptimeMillis();
-            if (taps[0] > 0L && taps[2] - taps[0] <= 750L) {
-                taps[0] = taps[1] = taps[2] = 0L;
-                showGameUtilityMenu(gameActivity);
-            }
-            return true;
-        });
-        Log.i(TAG, "Installed the bottom-right triple-tap Nebula utility menu.");
-        return trigger;
-    }
-
-    private void showGameUtilityMenu(Activity gameActivity) {
-        gameActivity.runOnUiThread(() -> {
-            Context themed = new ContextThemeWrapper(gameActivity, R.style.NebulaAlertDialogTheme);
-            View content = LayoutInflater.from(themed).inflate(R.layout.dialog_game_utilities, null, false);
-            AlertDialog dialog = new AlertDialog.Builder(themed)
-                    .setView(content)
-                    .create();
-            content.findViewById(R.id.game_utility_launcher).setOnClickListener(view -> {
-                dialog.dismiss();
-                Intent launcher = new Intent(gameActivity, dev.tates.nebula.SelectorActivity.class);
-                launcher.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                gameActivity.startActivity(launcher);
-            });
-            content.findViewById(R.id.game_utility_quit).setOnClickListener(view -> {
-                dialog.dismiss();
-                gameActivity.finishAffinity();
-                new Handler(Looper.getMainLooper()).postDelayed(
-                        () -> Process.killProcess(Process.myPid()),
-                        150L);
-            });
-            content.findViewById(R.id.game_utility_close).setOnClickListener(view -> dialog.dismiss());
-            dialog.setOnShowListener(ignored -> {
-                if (dialog.getWindow() != null) {
-                    dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-                    dialog.getWindow().setDimAmount(0.72f);
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-                        WindowManager.LayoutParams attributes = dialog.getWindow().getAttributes();
-                        attributes.setBlurBehindRadius(Math.round(
-                                34f * gameActivity.getResources().getDisplayMetrics().density));
-                        dialog.getWindow().setAttributes(attributes);
-                        dialog.getWindow().setBackgroundBlurRadius(Math.round(
-                                18f * gameActivity.getResources().getDisplayMetrics().density));
-                        View gameDecor = gameActivity.getWindow().getDecorView();
-                        float radius = 12f * gameActivity.getResources().getDisplayMetrics().density;
-                        gameDecor.setRenderEffect(android.graphics.RenderEffect.createBlurEffect(
-                                radius, radius, android.graphics.Shader.TileMode.CLAMP));
-                        dialog.getWindow().getDecorView().addOnAttachStateChangeListener(
-                                new View.OnAttachStateChangeListener() {
-                                    @Override
-                                    public void onViewAttachedToWindow(View view) {
-                                    }
-
-                                    @Override
-                                    public void onViewDetachedFromWindow(View view) {
-                                        gameDecor.setRenderEffect(null);
-                                        view.removeOnAttachStateChangeListener(this);
-                                    }
-                                });
-                    }
-                }
-            });
-            dialog.show();
-        });
     }
 
     private void startSpinner(View view) {
@@ -813,3 +725,4 @@ public class BootstrapActivity extends Activity {
         return abi;
     }
 }
+

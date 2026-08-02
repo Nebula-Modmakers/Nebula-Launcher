@@ -133,15 +133,30 @@
                     android:orientation="vertical"
                     android:padding="22dp">
 
-                    <TextView
-                        android:id="@+id/mod_detail_badge"
+                    <FrameLayout
                         android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:background="@drawable/bg_nebula_icon"
-                        android:gravity="center"
-                        android:textColor="#FFFFFF"
-                        android:textSize="26sp"
-                        android:textStyle="bold" />
+                        android:layout_height="64dp">
+
+                        <TextView
+                            android:id="@+id/mod_detail_badge"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_nebula_icon"
+                            android:gravity="center"
+                            android:textColor="#FFFFFF"
+                            android:textSize="26sp"
+                            android:textStyle="bold" />
+
+                        <ImageView
+                            android:id="@+id/mod_detail_image"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@drawable/bg_nebula_icon"
+                            android:clipToOutline="true"
+                            android:contentDescription="Mod icon"
+                            android:scaleType="centerCrop"
+                            android:visibility="gone" />
+                    </FrameLayout>
 
                     <TextView
                         android:id="@+id/mod_detail_title"
@@ -202,3 +217,4 @@
         </ScrollView>
     </LinearLayout>
 </FrameLayout>
+

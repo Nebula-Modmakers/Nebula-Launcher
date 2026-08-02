@@ -50,8 +50,8 @@ android {
         minSdk = 26
         targetSdk = 36
         applicationId = "dev.tates.nebula"
-        versionCode = 9
-        versionName = "1.3.0"
+        versionCode = 10
+        versionName = "1.3.1"
         ndk {
             abiFilters.add("arm64-v8a")
         }

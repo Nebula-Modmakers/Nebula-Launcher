@@ -71,8 +71,15 @@ public final class ModCatalogClient {
                 if (size <= 0 || size > NpkgInstaller.MAX_PACKAGE_BYTES) {
                     throw new IOException("Catalog contains an invalid package size");
                 }
+                String gameVersion = required(version, "gameVersion");
+                long gameVersionCode = version.getLong("gameVersionCode");
+                if (gameVersionCode < 1) {
+                    throw new IOException("Catalog contains an invalid supported game version code");
+                }
                 versions.add(new Version(
                         required(version, "version"),
+                        gameVersion,
+                        gameVersionCode,
                         downloadUrl,
                         size,
                         sha256));
@@ -105,11 +112,13 @@ public final class ModCatalogClient {
                 }
             }
             Map<String, String> githubRepos = parseGithubRepos(item.optJSONArray("githubRepos"));
+            String imageUrl = validateImageUrl(required(item, "imageUrl"));
             mods.add(new Mod(
                     id,
                     packageId,
                     required(item, "name"),
                     item.optString("badge", "M"),
+                    imageUrl,
                     item.optString("author", "Unknown author"),
                     item.optString("category", "Mod"),
                     item.optString("description", ""),
@@ -165,6 +174,21 @@ public final class ModCatalogClient {
         return repositories;
     }
 
+    private static String validateImageUrl(String value) throws Exception {
+        if (value.length() > 2048) throw new IOException("Catalog image URL is too long");
+        URL parsed = new URL(value);
+        String host = parsed.getHost().toLowerCase(Locale.ROOT);
+        if (!"https".equalsIgnoreCase(parsed.getProtocol())
+                || parsed.getUserInfo() != null
+                || parsed.getPort() != -1
+                || parsed.getRef() != null
+                || !("avatars.githubusercontent.com".equals(host)
+                    || "camo.githubusercontent.com".equals(host))) {
+            throw new IOException("Catalog contains an untrusted image URL");
+        }
+        return value;
+    }
+
     private static String readUtf8(InputStream input, int maximumBytes) throws IOException {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         byte[] buffer = new byte[8192];
@@ -183,6 +207,7 @@ public final class ModCatalogClient {
         public final String packageId;
         public final String name;
         public final String badge;
+        public final String imageUrl;
         public final String author;
         public final String category;
         public final String description;
@@ -193,7 +218,7 @@ public final class ModCatalogClient {
         public final Map<String, String> githubRepos;
         public final List<Version> versions;
 
-        Mod(String id, String packageId, String name, String badge, String author,
+        Mod(String id, String packageId, String name, String badge, String imageUrl, String author,
                 String category, String description, String gameVersion,
                 String latestVersion, List<String> licenses,
                 Map<String, List<String>> licenseComponents,
@@ -202,6 +227,7 @@ public final class ModCatalogClient {
             this.packageId = packageId;
             this.name = name;
             this.badge = badge;
+            this.imageUrl = imageUrl;
             this.author = author;
             this.category = category;
             this.description = description;
@@ -223,15 +249,21 @@ public final class ModCatalogClient {
 
     public static final class Version {
         public final String version;
+        public final String gameVersion;
+        public final long gameVersionCode;
         public final String downloadUrl;
         public final long size;
         public final String sha256;
 
-        Version(String version, String downloadUrl, long size, String sha256) {
+        Version(String version, String gameVersion, long gameVersionCode,
+                String downloadUrl, long size, String sha256) {
             this.version = version;
+            this.gameVersion = gameVersion;
+            this.gameVersionCode = gameVersionCode;
             this.downloadUrl = downloadUrl;
             this.size = size;
             this.sha256 = sha256;
         }
     }
 }
+

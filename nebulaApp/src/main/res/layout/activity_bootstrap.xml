@@ -20,10 +20,11 @@
         android:textStyle="bold" />
 
     <TextView
+        android:id="@+id/bootstrap_version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="3dp"
-        android:text="1.2.2  •  NATIVE ANDROID"
+        android:text="NATIVE ANDROID"
         android:textColor="#7DD3FC"
         android:textSize="11sp"
         android:textStyle="bold" />
@@ -90,4 +91,5 @@
     </ScrollView>
 
 </LinearLayout>
+
 

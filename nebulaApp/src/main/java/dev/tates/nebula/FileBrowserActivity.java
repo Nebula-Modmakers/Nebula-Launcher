@@ -140,12 +140,7 @@ public class FileBrowserActivity extends Activity {
         visibleEntries.clear();
         File[] files = currentDirectory.listFiles();
         if (files != null) {
-            for (File file : files) {
-                if (isHiddenLegacyEntry(file)) {
-                    continue;
-                }
-                visibleEntries.add(file);
-            }
+            Collections.addAll(visibleEntries, files);
         }
 
         Collections.sort(visibleEntries, Comparator
@@ -155,15 +150,6 @@ public class FileBrowserActivity extends Activity {
         adapter.notifyDataSetChanged();
         pathView.setText(getString(R.string.file_browser_path, currentDirectory.getAbsolutePath()));
         upButton.setEnabled(!currentDirectory.equals(rootDirectory));
-    }
-
-    private boolean isHiddenLegacyEntry(File file) {
-        if (!currentDirectory.equals(rootDirectory) || !file.isDirectory()) {
-            return false;
-        }
-
-        String name = file.getName();
-        return "com.innersloth.spacemafia".equals(name) || "mods".equals(name);
     }
 
     private void openEntry(File entry) {
@@ -269,3 +255,4 @@ public class FileBrowserActivity extends Activity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
+

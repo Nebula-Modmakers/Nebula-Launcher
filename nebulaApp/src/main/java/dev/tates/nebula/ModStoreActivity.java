@@ -4,23 +4,34 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class ModStoreActivity extends Activity {
+    public static final String EXTRA_MOD_ID = "mod_id";
+    private static final int MAX_ICON_BYTES = 2 * 1024 * 1024;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private View root;
     private View catalog;
@@ -28,10 +39,12 @@ public final class ModStoreActivity extends Activity {
     private ModCatalogClient.Mod selectedMod;
     private ModCatalogClient.Version selectedVersion;
     private volatile boolean installing;
+    private String requestedModId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        requestedModId = getIntent().getStringExtra(EXTRA_MOD_ID);
         setContentView(R.layout.activity_mod_store);
         root = findViewById(R.id.mod_store_root);
         catalog = findViewById(R.id.mod_store_catalog);
@@ -81,6 +94,15 @@ public final class ModStoreActivity extends Activity {
         }
         for (ModCatalogClient.Mod mod : mods) list.addView(createModCard(mod));
         list.post(() -> UiMotion.stagger(list));
+        if (requestedModId != null) {
+            for (ModCatalogClient.Mod mod : mods) {
+                if (requestedModId.equals(mod.id)) {
+                    requestedModId = null;
+                    showDetail(mod);
+                    break;
+                }
+            }
+        }
     }
 
     private void showCatalogError(Throwable error) {
@@ -136,10 +158,21 @@ public final class ModStoreActivity extends Activity {
         card.addView(heading, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        FrameLayout badgeHost = new FrameLayout(this);
         TextView badge = text(mod.badge, 18, Color.WHITE, true);
         badge.setGravity(Gravity.CENTER);
         badge.setBackgroundResource(R.drawable.bg_nebula_icon);
-        heading.addView(badge, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        badgeHost.addView(badge, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        ImageView icon = new ImageView(this);
+        icon.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        icon.setBackgroundResource(R.drawable.bg_nebula_icon);
+        icon.setClipToOutline(true);
+        icon.setVisibility(View.GONE);
+        badgeHost.addView(icon, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        heading.addView(badgeHost, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        loadModImage(mod.imageUrl, icon, badge);
 
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
@@ -189,6 +222,10 @@ public final class ModStoreActivity extends Activity {
         selectedVersion = mod.latest();
         ((TextView) findViewById(R.id.mod_detail_header)).setText("Mod details");
         ((TextView) findViewById(R.id.mod_detail_badge)).setText(mod.badge);
+        ImageView detailImage = findViewById(R.id.mod_detail_image);
+        detailImage.setImageDrawable(null);
+        detailImage.setVisibility(View.GONE);
+        loadModImage(mod.imageUrl, detailImage, findViewById(R.id.mod_detail_badge));
         ((TextView) findViewById(R.id.mod_detail_title)).setText(mod.name);
         ((TextView) findViewById(R.id.mod_detail_author))
                 .setText("by " + mod.author + "  \u2022  Android compatible");
@@ -202,7 +239,9 @@ public final class ModStoreActivity extends Activity {
             option.setId(View.generateViewId());
             option.setTag(version);
             option.setText((version == mod.latest() ? "Latest  \u2022  " : "Version  ")
-                    + version.version + "  \u2022  " + formatBytes(version.size));
+                    + version.version + "  \u2022  " + formatBytes(version.size)
+                    + "  \u2022  Among Us " + version.gameVersion
+                    + " (" + version.gameVersionCode + ")");
             option.setTextColor(0xFFF0F3FF);
             option.setTextSize(16);
             option.setGravity(Gravity.CENTER_VERTICAL);
@@ -234,6 +273,66 @@ public final class ModStoreActivity extends Activity {
         updateInstallButton(installedVersion == null
                 ? "Install " + selectedMod.name
                 : "Uninstall " + selectedMod.name + "  \u2022  " + installedVersion, true);
+    }
+
+    private void loadModImage(String imageUrl, ImageView target, View fallback) {
+        target.setTag(imageUrl);
+        worker.execute(() -> {
+            try {
+                Bitmap bitmap = downloadIcon(imageUrl);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed() || !imageUrl.equals(target.getTag())) return;
+                    target.setImageBitmap(bitmap);
+                    target.setVisibility(View.VISIBLE);
+                    fallback.setVisibility(View.GONE);
+                });
+            } catch (Exception ignored) {
+                // Initials remain visible when the remote icon is unavailable.
+            }
+        });
+    }
+
+    private Bitmap downloadIcon(String imageUrl) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(imageUrl).openConnection();
+        connection.setConnectTimeout(10_000);
+        connection.setReadTimeout(15_000);
+        connection.setInstanceFollowRedirects(false);
+        connection.setUseCaches(true);
+        connection.setRequestProperty("User-Agent", "Nebula-Android/1");
+        try {
+            if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                throw new IOException("Icon request failed");
+            }
+            int declaredLength = connection.getContentLength();
+            if (declaredLength > MAX_ICON_BYTES) throw new IOException("Icon is too large");
+            byte[] encoded;
+            try (InputStream input = connection.getInputStream();
+                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int total = 0;
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    total += count;
+                    if (total > MAX_ICON_BYTES) throw new IOException("Icon is too large");
+                    output.write(buffer, 0, count);
+                }
+                encoded = output.toByteArray();
+            }
+
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeByteArray(encoded, 0, encoded.length, bounds);
+            if (bounds.outWidth < 1 || bounds.outHeight < 1
+                    || bounds.outWidth > 2048 || bounds.outHeight > 2048
+                    || (long) bounds.outWidth * bounds.outHeight > 4_194_304L) {
+                throw new IOException("Icon dimensions are invalid");
+            }
+            Bitmap bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.length);
+            if (bitmap == null) throw new IOException("Icon could not be decoded");
+            return bitmap;
+        } finally {
+            connection.disconnect();
+        }
     }
 
     private void confirmInstall() {
@@ -470,3 +569,4 @@ public final class ModStoreActivity extends Activity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
+

@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -118,6 +119,7 @@ public class SelectorActivity extends Activity {
     private String pendingLaunchPackage;
     private List<AppEntry> installedTargets = new ArrayList<>();
     private List<File> currentModFiles = new ArrayList<>();
+    private final Map<String, String> managedModImageUrls = new HashMap<>();
     private TextView modsPathView;
     private TextView modsCountView;
     private TextView lastErrorView;
@@ -152,6 +154,7 @@ public class SelectorActivity extends Activity {
     private Typeface orbitronTypeface;
     private boolean gameImportPromptShown;
     private boolean launchRequestInFlight;
+    private boolean automaticUpdateCheckStarted;
     private AlertDialog blockingLoadingDialog;
     private FirebaseAuth firebaseAuth;
     private CredentialManager credentialManager;
@@ -186,11 +189,14 @@ public class SelectorActivity extends Activity {
             public View getView(int position, View convertView, @NonNull ViewGroup parent) {
                 LinearLayout row;
                 TextView icon;
+                ImageView modImage;
                 TextView title;
                 TextView meta;
                 if (convertView instanceof LinearLayout) {
                     row = (LinearLayout) convertView;
-                    icon = (TextView) row.getChildAt(0);
+                    FrameLayout iconHost = (FrameLayout) row.getChildAt(0);
+                    icon = (TextView) iconHost.getChildAt(0);
+                    modImage = (ImageView) iconHost.getChildAt(1);
                     LinearLayout textWrap = (LinearLayout) row.getChildAt(1);
                     title = (TextView) textWrap.getChildAt(0);
                     meta = (TextView) textWrap.getChildAt(1);
@@ -201,6 +207,7 @@ public class SelectorActivity extends Activity {
                     row.setPadding(dp(12), dp(10), dp(12), dp(10));
                     row.setBackground(roundedColor(0x99202A48, dp(18), 0x263E5EFF, dp(1)));
 
+                    FrameLayout iconHost = new FrameLayout(getContext());
                     icon = new TextView(getContext());
                     icon.setGravity(Gravity.CENTER);
                     icon.setTextColor(0xFFFFFFFF);
@@ -208,7 +215,16 @@ public class SelectorActivity extends Activity {
                     icon.setTypeface(Typeface.DEFAULT_BOLD);
                     icon.setPadding(dp(9), dp(9), dp(9), dp(9));
                     icon.setBackground(roundedGradient(0xFF8B5CF6, 0xFF22D3EE, dp(15)));
-                    row.addView(icon, new LinearLayout.LayoutParams(dp(38), dp(38)));
+                    iconHost.addView(icon, new FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    modImage = new ImageView(getContext());
+                    modImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                    modImage.setBackground(roundedGradient(0xFF8B5CF6, 0xFF22D3EE, dp(15)));
+                    modImage.setClipToOutline(true);
+                    modImage.setVisibility(View.GONE);
+                    iconHost.addView(modImage, new FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                    row.addView(iconHost, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
                     LinearLayout textWrap = new LinearLayout(getContext());
                     textWrap.setOrientation(LinearLayout.VERTICAL);
@@ -229,11 +245,29 @@ public class SelectorActivity extends Activity {
                 if (file != null) {
                     String kind = file.isDirectory() ? "folder" : "file";
                     boolean managed = NpkgInstaller.isManagedSharedFile(SelectorActivity.this, file);
+                    boolean protectedComponent = isProtectedLauncherComponent(file);
                     title.setText(file.getName());
                     icon.setText(file.isDirectory() ? "DIR" : "M");
-                    meta.setText(managed
-                            ? kind + " - managed by Mod Store"
+                    meta.setText(protectedComponent
+                            ? kind + " - required by Nebula - cannot remove"
+                            : managed ? kind + " - managed by Mod Store"
                             : kind + " - externally added - tap to delete");
+                    String packageId = managed
+                            ? NpkgInstaller.getManagedPackageId(SelectorActivity.this, file) : null;
+                    String imageUrl = packageId == null ? null : managedModImageUrls.get(packageId);
+                    if ("NebulaCompat.dll".equalsIgnoreCase(file.getName())) {
+                        modImage.setTag("nebula-app-icon");
+                        modImage.setImageResource(R.mipmap.app_icon);
+                        modImage.setVisibility(View.VISIBLE);
+                        icon.setVisibility(View.GONE);
+                    } else if (imageUrl != null) {
+                        ModIconLoader.load(imageUrl, modImage, icon);
+                    } else {
+                        modImage.setTag(null);
+                        modImage.setImageDrawable(null);
+                        modImage.setVisibility(View.GONE);
+                        icon.setVisibility(View.VISIBLE);
+                    }
                 } else {
                     title.setText("");
                     icon.setText("M");
@@ -245,6 +279,10 @@ public class SelectorActivity extends Activity {
         modsListView.setAdapter(modsAdapter);
         modsListView.setOnItemClickListener((parent, view, position, id) -> {
             File file = currentModFiles.get(position);
+            if (isProtectedLauncherComponent(file)) {
+                Toast.makeText(this, "NebulaCompat is required by Nebula and cannot be removed.", Toast.LENGTH_LONG).show();
+                return;
+            }
             if (NpkgInstaller.isManagedSharedFile(this, file)) {
                 Toast.makeText(this, "Uninstall managed mods from the Mod Store.", Toast.LENGTH_LONG).show();
                 return;
@@ -253,6 +291,49 @@ public class SelectorActivity extends Activity {
         });
 
         refreshModsUi();
+        loadManagedModIcons();
+        checkForAppUpdateAutomatically();
+    }
+
+    private void checkForAppUpdateAutomatically() {
+        if (automaticUpdateCheckStarted) return;
+        automaticUpdateCheckStarted = true;
+        new Thread(() -> {
+            try {
+                AppUpdateClient.Release release = AppUpdateClient.check(this);
+                if (release == null) return;
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    new NebulaDialogBuilder(this)
+                            .setTitle("Nebula update available")
+                            .setMessage("Nebula " + release.versionName
+                                    + " is available. Update now to get the latest fixes and features.")
+                            .setPositiveButton("View update", (dialog, which) ->
+                                    UiMotion.open(this, new Intent(this, UpdatesActivity.class)))
+                            .setNegativeButton("Later", null)
+                            .show();
+                });
+            } catch (Exception error) {
+                Log.w(TAG, "Automatic app update check failed", error);
+            }
+        }, "NebulaAppUpdateCheck").start();
+    }
+
+    private void loadManagedModIcons() {
+        new Thread(() -> {
+            try {
+                List<ModCatalogClient.Mod> mods = ModCatalogClient.fetchCatalog();
+                Map<String, String> images = new HashMap<>();
+                for (ModCatalogClient.Mod mod : mods) images.put(mod.packageId, mod.imageUrl);
+                runOnUiThread(() -> {
+                    managedModImageUrls.clear();
+                    managedModImageUrls.putAll(images);
+                    if (modsAdapter != null) modsAdapter.notifyDataSetChanged();
+                });
+            } catch (Exception error) {
+                Log.w(TAG, "Could not load managed mod icons", error);
+            }
+        }, "NebulaModIcons").start();
     }
 
     private void showLauncherUiWithSupernovaReveal() {
@@ -2307,6 +2388,7 @@ public class SelectorActivity extends Activity {
 
     private View createLauncherView() {
         FrameLayout root = new FrameLayout(this);
+        root.setTag("nebula-launcher-root");
         root.setBackground(roundedGradient(0xFF0B1024, 0xFF151A3A, 0));
 
         View glowTop = new View(this);
@@ -2392,6 +2474,23 @@ public class SelectorActivity extends Activity {
         return root;
     }
 
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        FrameLayout content = findViewById(android.R.id.content);
+        boolean showingLauncher = content != null
+                && content.findViewWithTag("nebula-launcher-root") != null;
+        super.onConfigurationChanged(newConfig);
+
+        // The launcher chooses a one- or two-column hierarchy when it is
+        // created. Android can resize the existing views, but it cannot turn
+        // that hierarchy into the other form after a rotation. Rebuild only
+        // the signed-in launcher; auth screens remain intact so rotating does
+        // not discard an in-progress account flow.
+        if (showingLauncher) {
+            showLauncherUi();
+        }
+    }
+
     private void maybePromptForGameZip() {
         if (gameImportPromptShown || isAmongUsInstalled()) {
             return;
@@ -2411,10 +2510,23 @@ public class SelectorActivity extends Activity {
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(0, 0, 0, dp(14));
 
-        View title = nebulaWordmark(28, 0xFFF0F3FF, 0xFF22D3EE, Gravity.LEFT | Gravity.CENTER_VERTICAL);
-        header.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        LinearLayout branding = new LinearLayout(this);
+        branding.setOrientation(LinearLayout.HORIZONTAL);
+        branding.setGravity(Gravity.CENTER_VERTICAL);
+        branding.addView(nebulaWordmark(
+                28, 0xFFF0F3FF, 0xFF22D3EE, Gravity.LEFT | Gravity.CENTER_VERTICAL));
+        if (BuildConfig.DEBUG_MODE) {
+            TextView debug = pill("DEBUG", 0x33F59E0B, 0xFFFFC66D);
+            debug.setTextSize(10);
+            LinearLayout.LayoutParams debugParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, dp(28));
+            debugParams.leftMargin = dp(9);
+            branding.addView(debug, debugParams);
+        }
+        header.addView(branding, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView badge = pill("1.2.2", 0x3322D3EE, 0xFF9AE6FF);
+        TextView badge = pill(BuildConfig.VERSION_NAME, 0x3322D3EE, 0xFF9AE6FF);
         LinearLayout.LayoutParams badgeParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 dp(38)
@@ -3096,6 +3208,10 @@ public class SelectorActivity extends Activity {
             return false;
         }
 
+        if (GameCompatibility.isSupported(packageInfo)) {
+            return true;
+        }
+
         if (BuildConfig.DEBUG_MODE) {
             Log.w(TAG, "Debug compatibility override: allowing Among Us "
                     + GameCompatibility.getVersionName(packageInfo) + " ("
@@ -3104,12 +3220,15 @@ public class SelectorActivity extends Activity {
         }
 
         String installedVersion = GameCompatibility.getVersionName(packageInfo);
+        long installedVersionCode = GameCompatibility.getVersionCode(packageInfo);
         String action = GameCompatibility.requiredAction(installedVersion);
         new NebulaDialogBuilder(this)
                 .setTitle("Unsupported Among Us version")
-                .setMessage("Nebula supports Among Us 17.4a (Android build 7045) only. "
+                .setMessage("Nebula supports Among Us package version 2026.6.5 "
+                        + "(Android build 7045) only. "
                         + "You currently have package version "
                         + (installedVersion.isEmpty() ? "unknown" : installedVersion)
+                        + " (Android build " + installedVersionCode + ")"
                         + ". Please " + action + " Among Us before launching.")
                 .setPositiveButton("Open Play Store", (dialog, which) -> openAmongUsStore())
                 .setNegativeButton("Cancel", null)
@@ -3802,6 +3921,7 @@ public class SelectorActivity extends Activity {
     }
 
     private void confirmDeleteMod(File file) {
+        if (isProtectedLauncherComponent(file)) return;
         new NebulaDialogBuilder(this)
                 .setTitle(R.string.selector_mod_delete_confirm_title)
                 .setMessage(getString(R.string.selector_mod_delete_confirm_message, file.getName()))
@@ -3811,6 +3931,7 @@ public class SelectorActivity extends Activity {
     }
 
     private void deleteMod(File file) {
+        if (isProtectedLauncherComponent(file)) return;
         if (Utilities.deleteRecursive(file)) {
             FusionRuntimeManager.modsChanged(this);
             Toast.makeText(this, getString(R.string.selector_mod_deleted, file.getName()), Toast.LENGTH_LONG).show();
@@ -3836,7 +3957,8 @@ public class SelectorActivity extends Activity {
     private void deleteAllMods() {
         int deleted = 0;
         for (File file : new ArrayList<>(currentModFiles)) {
-            if (NpkgInstaller.isManagedSharedFile(this, file)) continue;
+            if (isProtectedLauncherComponent(file)
+                    || NpkgInstaller.isManagedSharedFile(this, file)) continue;
             if (Utilities.deleteRecursive(file)) {
                 deleted++;
             }
@@ -3855,14 +3977,19 @@ public class SelectorActivity extends Activity {
 
     private boolean hasExternallyAddedMods() {
         for (File file : currentModFiles) {
-            if (!NpkgInstaller.isManagedSharedFile(this, file)) return true;
+            if (!isProtectedLauncherComponent(file)
+                    && !NpkgInstaller.isManagedSharedFile(this, file)) return true;
         }
         return false;
     }
 
+    private boolean isProtectedLauncherComponent(File file) {
+        return file != null && "NebulaCompat.dll".equalsIgnoreCase(file.getName());
+    }
+
     private void openFileBrowser() {
         Intent intent = new Intent(this, FileBrowserActivity.class);
-        intent.putExtra(FileBrowserActivity.EXTRA_ROOT_PATH, Utilities.getNebulaRoot(this).getAbsolutePath());
+        intent.putExtra(FileBrowserActivity.EXTRA_ROOT_PATH, getFilesDir().getAbsolutePath());
         startActivity(intent);
     }
 
@@ -3957,4 +4084,5 @@ public class SelectorActivity extends Activity {
     }
 
 }
+
 
