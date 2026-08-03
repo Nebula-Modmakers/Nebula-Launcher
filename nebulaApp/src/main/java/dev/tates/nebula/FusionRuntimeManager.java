@@ -30,6 +30,28 @@ public final class FusionRuntimeManager {
         // FusionCore reads the shared BepInEx tree on every native game launch.
     }
 
+    public static void reinstallBepInEx(Context context) throws IOException {
+        File bepInEx = new File(Utilities.getRuntimeRoot(context), "BepInEx");
+        File expected = Utilities.getSharedPluginsDirectory(context).getParentFile();
+        if (expected == null || !bepInEx.getCanonicalFile().equals(expected.getCanonicalFile())) {
+            throw new IOException("Refusing to reinstall an unexpected BepInEx directory");
+        }
+        if (bepInEx.exists() && !Utilities.deleteRecursive(bepInEx)) {
+            throw new IOException("Could not remove the existing BepInEx installation");
+        }
+
+        context.getSharedPreferences("nebula_launch", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("bepinex_regeneration_pending", true)
+                .remove("automatic_bootstrap_retry_active")
+                .commit();
+
+        // Restore only profile-owned plugins. Bootstrap will unpack a pristine runtime
+        // on the next launch because the runtime digest marker was removed with BepInEx.
+        ensureModDirectories(context);
+        ProfileManager.stageActive(context);
+    }
+
     private static void ensureRegionInstallConfig(Context context, File plugins) throws IOException {
         File bepInEx = plugins.getParentFile();
         if (bepInEx == null) {

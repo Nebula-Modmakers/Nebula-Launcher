@@ -36,6 +36,7 @@ public final class NebulaDialogBuilder extends AlertDialog.Builder {
     }
 
     private static void style(AlertDialog dialog) {
+        if (dialog.getWindow() != null) LanguageManager.install(dialog.getWindow().getDecorView());
         Window window = dialog.getWindow();
         if (window != null) {
             window.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));

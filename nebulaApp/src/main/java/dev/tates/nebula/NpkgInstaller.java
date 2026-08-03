@@ -301,7 +301,13 @@ public final class NpkgInstaller {
             }
             writtenTargets.add(recordFile);
             writeInstallRecord(profileRoot, manifest, files);
-            ProfileManager.stageActive(context);
+            if (manifest.optBoolean("requires_reinstall", false)) {
+                if (progress != null) progress.update("Reinstalling BepInEx", 0, 1);
+                FusionRuntimeManager.reinstallBepInEx(context);
+                if (progress != null) progress.update("Reinstalling BepInEx", 1, 1);
+            } else {
+                ProfileManager.stageActive(context);
+            }
         } catch (Throwable error) {
             rollback(writtenTargets, backups);
             try {
@@ -335,6 +341,10 @@ public final class NpkgInstaller {
         if (!mod.packageId.equals(required(manifest, "id"))
                 || !version.version.equals(required(manifest, "version"))) {
             throw new IOException("Package identity does not match the catalog");
+        }
+        if (manifest.has("requires_reinstall")
+                && !(manifest.opt("requires_reinstall") instanceof Boolean)) {
+            throw new IOException("Manifest requires_reinstall must be a boolean");
         }
         JSONArray licenses = manifest.optJSONArray("licenses");
         if (licenses == null || licenses.length() == 0 || licenses.length() > 32) {
@@ -516,4 +526,3 @@ public final class NpkgInstaller {
         }
     }
 }
-

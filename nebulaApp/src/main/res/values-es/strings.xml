@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Idioma</string><string name="language_description">Elige el idioma de Nebula.</string>
+ <string name="auth_welcome_to">Te damos la bienvenida a</string><string name="auth_welcome_subtitle">Tu lanzador de Among Us con mods, vinculación de cuenta y biblioteca de mods en un solo lugar.</string>
+ <string name="auth_get_started">Comenzar</string><string name="auth_login_continue">Inicia sesión para continuar</string><string name="auth_email">Correo electrónico</string><string name="auth_password">Contraseña</string><string name="auth_log_in">Iniciar sesión</string><string name="auth_create_account">Crear cuenta</string><string name="auth_forgot_password">¿Olvidaste la contraseña?</string>
+</resources>

@@ -44,6 +44,7 @@ public class SettingsActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        LanguageManager.apply(this);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
@@ -85,6 +86,11 @@ public class SettingsActivity extends Activity {
                 new Intent(this, BugReportActivity.class)));
         UiMotion.press(reportBug);
 
+        Button languageButton = findViewById(R.id.settings_language);
+        languageButton.setText(LanguageManager.NAMES[LanguageManager.getIndex(this)]);
+        languageButton.setOnClickListener(v -> showLanguageDialog());
+        UiMotion.press(languageButton);
+
         Switch verboseLaunch = findViewById(R.id.settings_verbose_launch);
         SharedPreferences launchPrefs = getSharedPreferences("nebula_launch", MODE_PRIVATE);
         verboseLaunch.setChecked(launchPrefs.getBoolean("verbose_launch", false));
@@ -92,6 +98,19 @@ public class SettingsActivity extends Activity {
                 launchPrefs.edit().putBoolean("verbose_launch", checked).apply());
         UiMotion.enter(root);
         registerPredictiveBack();
+    }
+
+    private void showLanguageDialog() {
+        new NebulaDialogBuilder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(LanguageManager.NAMES, LanguageManager.getIndex(this),
+                        (dialog, which) -> {
+                            LanguageManager.setLanguage(this, which);
+                            dialog.dismiss();
+                            recreate();
+                        })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void registerPredictiveBack() {
@@ -159,7 +178,7 @@ public class SettingsActivity extends Activity {
         int pad = dp(18);
         wrap.setPadding(pad, dp(8), pad, 0);
         TextView message = new TextView(this);
-        message.setText("Open Innersloth, sign in with Google, use Share Link, then paste that link here.");
+        message.setText("Open Innersloth, sign in with Google, then tap Share and choose Nebula. You can also paste the link manually below.");
         message.setTextColor(0xFFAAB4E8);
         message.setTextSize(13);
         wrap.addView(message);
@@ -173,9 +192,16 @@ public class SettingsActivity extends Activity {
         new NebulaDialogBuilder(this)
                 .setTitle("Nebula account link")
                 .setView(wrap)
-                .setPositiveButton("Save", (dialog, which) -> saveAccountLink(input.getText().toString()))
+                .setPositiveButton("Open Innersloth", (dialog, which) -> openInnerslothAccountsPage())
                 .setNegativeButton(android.R.string.cancel, null)
-                .setNeutralButton("Open Innersloth", (dialog, which) -> openInnerslothAccountsPage())
+                .setNeutralButton("Paste manually", (dialog, which) -> {
+                    String pasted = input.getText().toString();
+                    if (pasted.trim().isEmpty()) {
+                        NebulaToast.makeText(this, "Paste an Innersloth Share Link first.", Toast.LENGTH_LONG).show();
+                    } else {
+                        saveAccountLink(pasted);
+                    }
+                })
                 .show();
     }
 
@@ -185,7 +211,7 @@ public class SettingsActivity extends Activity {
             startActivity(intent);
         } catch (Exception e) {
             Log.w(TAG, "Failed to open Innersloth account page", e);
-            Toast.makeText(this, "Could not open the account page.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Could not open the account page.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -195,7 +221,7 @@ public class SettingsActivity extends Activity {
             String connectToken = firstNonEmpty(values, "EOSConnectToken", "connectToken", "token", "id_token", "googleToken");
             String userIdToken = firstNonEmpty(values, "EOSToken", "userIdToken", "token", "id_token", "googleToken");
             if (connectToken.isEmpty()) {
-                Toast.makeText(this, "That link did not include an account token.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "That link did not include an account token.", Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -208,7 +234,7 @@ public class SettingsActivity extends Activity {
                     connectExpiresAt);
             if (connectExpiresAt > 0L
                     && connectExpiresAt <= System.currentTimeMillis() / 1000L + 60L) {
-                Toast.makeText(this, "That account link has expired. Generate a new Share Link.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "That account link has expired. Generate a new Share Link.", Toast.LENGTH_LONG).show();
                 return;
             }
             String store = firstNonEmpty(values, "store");
@@ -251,10 +277,10 @@ public class SettingsActivity extends Activity {
             auth.append("ProfilePath=").append(escapeProperty(Utilities.getPrivateTargetDirectory(this, TARGET_PACKAGE).getAbsolutePath())).append('\n');
 
             Utilities.writeTextFile(Utilities.getAuthConfigFile(this, TARGET_PACKAGE), auth.toString());
-            Toast.makeText(this, "Nebula account link saved.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Nebula account link saved.", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Log.w(TAG, "Failed to save Nebula account link", e);
-            Toast.makeText(this, "Could not save that account link.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Could not save that account link.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -392,7 +418,7 @@ public class SettingsActivity extends Activity {
     private void finishLocalLogout(SharedPreferences prefs) {
         hideProgress();
         NebulaAccountData.clearLocal(this);
-        Toast.makeText(this, "Logged out of Nebula.", Toast.LENGTH_SHORT).show();
+        NebulaToast.makeText(this, "Logged out of Nebula.", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(this, SelectorActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
@@ -421,7 +447,7 @@ public class SettingsActivity extends Activity {
                 .setView(confirmation)
                 .setPositiveButton("Delete permanently", (dialog, which) -> {
                     if (!"DELETE".equals(confirmation.getText().toString().trim())) {
-                        Toast.makeText(this, "Account was not deleted. Type DELETE exactly.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Account was not deleted. Type DELETE exactly.", Toast.LENGTH_LONG).show();
                         return;
                     }
                     deleteAccount();
@@ -434,7 +460,7 @@ public class SettingsActivity extends Activity {
         SharedPreferences prefs = getSharedPreferences(NEBULA_AUTH_PREFS, MODE_PRIVATE);
         String sessionToken = SecureTokenStore.get(prefs, "serverSessionToken");
         if (sessionToken.isEmpty()) {
-            Toast.makeText(this, "Please log in again before deleting the account.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Please log in again before deleting the account.", Toast.LENGTH_LONG).show();
             return;
         }
         showProgress("Deleting account", "Permanently deleting Nebula account data…");
@@ -451,7 +477,7 @@ public class SettingsActivity extends Activity {
                 runOnUiThread(() -> {
                     hideProgress();
                     NebulaAccountData.clearLocal(this);
-                    Toast.makeText(this, "Your Nebula account was permanently deleted.", Toast.LENGTH_LONG).show();
+                    NebulaToast.makeText(this, "Your Nebula account was permanently deleted.", Toast.LENGTH_LONG).show();
                     Intent intent = new Intent(this, SelectorActivity.class)
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);

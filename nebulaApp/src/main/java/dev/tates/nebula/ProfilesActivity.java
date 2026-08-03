@@ -67,6 +67,7 @@ public final class ProfilesActivity extends Activity {
             LinearLayout copy = new LinearLayout(this);
             copy.setOrientation(LinearLayout.VERTICAL);
             TextView name = label(profile, 18, 0xFFF0F3FF, Typeface.BOLD);
+            LanguageManager.skip(name);
             TextView state = label(
                     isActive ? "Active • mods are staged at launch" : "Tap to activate",
                     12,
@@ -90,7 +91,7 @@ public final class ProfilesActivity extends Activity {
                     ProfileManager.activate(this, profile);
                     renderProfiles();
                 } catch (IOException exception) {
-                    Toast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
+                    NebulaToast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
                 }
             });
             UiMotion.press(card);
@@ -140,14 +141,14 @@ public final class ProfilesActivity extends Activity {
                 .setPositiveButton("Create", (dialog, which) -> {
                     String requested = input.getText().toString();
                     if (!ProfileManager.create(this, requested)) {
-                        Toast.makeText(this, "Choose a unique profile name.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Choose a unique profile name.", Toast.LENGTH_LONG).show();
                         return;
                     }
                     try {
                         ProfileManager.activate(this, requested);
                         renderProfiles();
                     } catch (IOException exception) {
-                        Toast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -163,7 +164,7 @@ public final class ProfilesActivity extends Activity {
                         ProfileManager.delete(this, profile);
                         renderProfiles();
                     } catch (IOException exception) {
-                        Toast.makeText(this, "Could not delete profile.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Could not delete profile.", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)

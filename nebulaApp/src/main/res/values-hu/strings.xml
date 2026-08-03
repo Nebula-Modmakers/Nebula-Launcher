@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Nyelv</string><string name="language_description">Válaszd ki a Nebula nyelvét.</string>
+ <string name="auth_welcome_to">Üdvözlünk a</string><string name="auth_welcome_subtitle">A modolt Among Us indítód, fiökösszekapcsolásod és modkönyvtárad egy helyen.</string>
+ <string name="auth_get_started">Kezdés</string><string name="auth_login_continue">Jelentkezz be a folytatáshoz</string><string name="auth_email">E-mail</string><string name="auth_password">Jelszó</string><string name="auth_log_in">Bejelentkezés</string><string name="auth_create_account">Fiók létrehozása</string><string name="auth_forgot_password">Elfelejtett jelszó</string>
+</resources>

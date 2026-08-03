@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Язык</string><string name="language_description">Выберите язык Nebula.</string>
+ <string name="auth_welcome_to">Добро пожаловать в</string><string name="auth_welcome_subtitle">Лаунчер Among Us с модами, привязка аккаунта и библиотека модов в одном месте.</string>
+ <string name="auth_get_started">Начать</string><string name="auth_login_continue">Войдите, чтобы продолжить</string><string name="auth_email">Эл. почта</string><string name="auth_password">Пароль</string><string name="auth_log_in">Войти</string><string name="auth_create_account">Создать аккаунт</string><string name="auth_forgot_password">Забыли пароль?</string>
+</resources>

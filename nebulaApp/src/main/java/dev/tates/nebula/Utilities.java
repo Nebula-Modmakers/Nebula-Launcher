@@ -425,11 +425,51 @@ public class Utilities {
     }
 
     public static File getLastErrorFile(Context context, String packageName) {
-        return new File(getPrivateTargetDirectory(context, packageName), LAST_ERROR_FILE);
+        File diagnosticsDirectory = new File(new File(context.getFilesDir(), "diagnostics"), packageName);
+        File diagnosticsFile = new File(diagnosticsDirectory, LAST_ERROR_FILE);
+
+        // Older builds kept this beside the emulated game files. Town of Us scans that
+        // directory for locale text files and consequently tried to parse last_error.txt
+        // as a translation. Preserve an existing report while moving it out of game data.
+        File legacyFile = new File(getPrivateTargetDirectory(context, packageName), LAST_ERROR_FILE);
+        if (!diagnosticsFile.exists() && legacyFile.isFile()) {
+            if (!diagnosticsDirectory.exists() && !diagnosticsDirectory.mkdirs()) {
+                Log.w(TAG, "Could not create diagnostics directory for last-error migration");
+            } else if (!legacyFile.renameTo(diagnosticsFile)) {
+                try (InputStream input = new FileInputStream(legacyFile);
+                     OutputStream output = new FileOutputStream(diagnosticsFile, false)) {
+                    copyStream(input, output);
+                    if (!legacyFile.delete()) {
+                        Log.w(TAG, "Copied but could not remove the legacy last-error file");
+                    }
+                } catch (IOException e) {
+                    Log.w(TAG, "Could not migrate the legacy last-error file", e);
+                }
+            }
+        }
+
+        return diagnosticsFile;
     }
 
     public static File getLaunchSentinelFile(Context context, String packageName) {
-        return new File(getPrivateTargetDirectory(context, packageName), LAUNCH_SENTINEL_FILE);
+        File diagnosticsDirectory = new File(new File(context.getFilesDir(), "diagnostics"), packageName);
+        File diagnosticsFile = new File(diagnosticsDirectory, LAUNCH_SENTINEL_FILE);
+        File legacyFile = new File(getPrivateTargetDirectory(context, packageName), LAUNCH_SENTINEL_FILE);
+        if (!diagnosticsFile.exists() && legacyFile.isFile()) {
+            if (!diagnosticsDirectory.exists() && !diagnosticsDirectory.mkdirs()) {
+                Log.w(TAG, "Could not create diagnostics directory for launch-sentinel migration");
+            } else if (!legacyFile.renameTo(diagnosticsFile)) {
+                try {
+                    copyFile(legacyFile, diagnosticsFile);
+                    if (!legacyFile.delete()) {
+                        Log.w(TAG, "Copied but could not remove the legacy launch sentinel");
+                    }
+                } catch (IOException e) {
+                    Log.w(TAG, "Could not migrate the legacy launch sentinel", e);
+                }
+            }
+        }
+        return diagnosticsFile;
     }
 
     public static File getPrivateTargetDirectory(Context context, String packageName) {

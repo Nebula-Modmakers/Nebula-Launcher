@@ -266,4 +266,3 @@ public final class ModCatalogClient {
         }
     }
 }
-

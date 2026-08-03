@@ -204,4 +204,3 @@ public class UpdatesActivity extends Activity {
     @Override public void onBackPressed() { UiMotion.finish(this, root); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 }
-

@@ -59,6 +59,11 @@ public class BootstrapActivity extends Activity {
     public static final String BACKUP_UNITY_VERSION = "2017.0.0";
     private static final String GLOBAL_METADATA_FILE = "global-metadata.dat";
     private static final String RUNTIME_MARKER_FILE = ".nebula-runtime.sha256";
+    private static final String LAUNCH_PREFS = "nebula_launch";
+    private static final String AUTO_RETRY_ACTIVE = "automatic_bootstrap_retry_active";
+    private static final String BEPINEX_REGENERATION_PENDING = "bepinex_regeneration_pending";
+    private static final long STARTUP_STALL_TIMEOUT_MS = 45_000L;
+    private static final long REGENERATION_STALL_TIMEOUT_MS = 240_000L;
 
     private final AtomicBoolean hookInstalled = new AtomicBoolean(false);
     private final AtomicBoolean fusionInitialized = new AtomicBoolean(false);
@@ -99,6 +104,14 @@ public class BootstrapActivity extends Activity {
     }
 
     private void runBootstrapFlow(String targetPackage) {
+        File externalFilesDirectory = getExternalFilesDir(null);
+        if (externalFilesDirectory != null) {
+            File townLocaleDirectory = new File(externalFilesDirectory, "TownOfUs/Locales");
+            if (!townLocaleDirectory.exists() && !townLocaleDirectory.mkdirs()) {
+                Log.w(TAG, "Could not prepare the external Town of Us locale directory");
+            }
+        }
+
         try {
             android.content.pm.PackageInfo packageInfo =
                     GameCompatibility.getPackageInfo(this, targetPackage);
@@ -170,7 +183,7 @@ public class BootstrapActivity extends Activity {
                     // This hook runs before the game's onCreate. Queue UI installation so the
                     // Unity activity has completed its initial decor setup first.
                     new Handler(Looper.getMainLooper()).post(
-                            () -> attachPersistentLaunchOverlay(launcherActivity));
+                            () -> attachPersistentLaunchOverlay(launcherActivity, targetPackage));
                 })) {
             failAndFinish("Failed to install launcher hook! See log for details.", null);
             return;
@@ -276,7 +289,7 @@ public class BootstrapActivity extends Activity {
             if (statusView != null) {
                 statusView.setText(getString(R.string.bootstrap_status_error));
             }
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+            dev.tates.nebula.NebulaToast.makeText(this, message, Toast.LENGTH_LONG).show();
             finish();
         });
     }
@@ -337,13 +350,14 @@ public class BootstrapActivity extends Activity {
         }
     }
 
-    private void attachPersistentLaunchOverlay(Activity gameActivity) {
+    private void attachPersistentLaunchOverlay(Activity gameActivity, String targetPackage) {
         gameActivity.runOnUiThread(() -> {
             hideSystemBars(gameActivity);
             ViewGroup decor = (ViewGroup) gameActivity.getWindow().getDecorView();
             View overlay = LayoutInflater.from(gameActivity).inflate(R.layout.activity_bootstrap, decor, false);
             TextView overlayStatus = overlay.findViewById(R.id.bootstrap_status);
             TextView overlayLog = overlay.findViewById(R.id.bootstrap_log);
+            dev.tates.nebula.LanguageManager.skip(overlayLog);
             ScrollView logContainer = overlay.findViewById(R.id.bootstrap_log_container);
             View icon = overlay.findViewById(R.id.bootstrap_progress);
             View download = overlay.findViewById(R.id.bootstrap_download_progress);
@@ -362,11 +376,22 @@ public class BootstrapActivity extends Activity {
 
             Handler handler = new Handler(Looper.getMainLooper());
             final boolean[] interopGenerationMarked = {false};
+            final long[] lastLogLength = {-1L};
+            final long[] lastLogModified = {-1L};
+            final long[] lastProgressAt = {System.currentTimeMillis()};
             Runnable monitor = new Runnable() {
                 @Override
                 public void run() {
                     if (!overlay.isAttachedToWindow()) return;
                     String tail = readActiveLogTail();
+                    File activeLog = getActiveLogFile();
+                    long logLength = activeLog.isFile() ? activeLog.length() : 0L;
+                    long logModified = activeLog.isFile() ? activeLog.lastModified() : 0L;
+                    if (logLength != lastLogLength[0] || logModified != lastLogModified[0]) {
+                        lastLogLength[0] = logLength;
+                        lastLogModified[0] = logModified;
+                        lastProgressAt[0] = System.currentTimeMillis();
+                    }
                     if (verbose && !tail.isEmpty()) {
                         overlayLog.setText(tail);
                         logContainer.post(() -> logContainer.fullScroll(View.FOCUS_DOWN));
@@ -387,9 +412,11 @@ public class BootstrapActivity extends Activity {
                         }
                     }
                     if (currentLaunchLog && tail.contains("Chainloader startup complete")) {
-                        getSharedPreferences("nebula_launch", MODE_PRIVATE)
+                        getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
                                 .edit()
                                 .remove("il2cpp_interop_generation_in_progress")
+                                .remove(AUTO_RETRY_ACTIVE)
+                                .remove(BEPINEX_REGENERATION_PENDING)
                                 .apply();
                         File launchSentinel = dev.tates.nebula.Utilities.getLaunchSentinelFile(
                                 gameActivity, GameCompatibility.AMONG_US_PACKAGE);
@@ -401,11 +428,48 @@ public class BootstrapActivity extends Activity {
                         decor.removeView(overlay);
                         return;
                     }
+                    boolean regeneratingBepInEx = getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
+                            .getBoolean(BEPINEX_REGENERATION_PENDING, false);
+                    long stallTimeout = regeneratingBepInEx
+                            ? REGENERATION_STALL_TIMEOUT_MS : STARTUP_STALL_TIMEOUT_MS;
+                    if (System.currentTimeMillis() - lastProgressAt[0] >= stallTimeout) {
+                        boolean alreadyRetried = getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
+                                .getBoolean(AUTO_RETRY_ACTIVE, false);
+                        if (!alreadyRetried) {
+                            overlayStatus.setText("Startup stalled. Retrying once…");
+                            getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
+                                    .edit().putBoolean(AUTO_RETRY_ACTIVE, true).commit();
+                            scheduleProcessRestart(gameActivity, targetPackage, true);
+                        } else {
+                            overlayStatus.setText(
+                                    "Startup could not finish. Tap to return to Nebula.");
+                            icon.clearAnimation();
+                            icon.setVisibility(View.GONE);
+                            overlay.setClickable(true);
+                            overlay.setOnClickListener(view -> {
+                                getSharedPreferences(LAUNCH_PREFS, MODE_PRIVATE)
+                                        .edit().remove(AUTO_RETRY_ACTIVE).apply();
+                                scheduleProcessRestart(gameActivity, targetPackage, false);
+                            });
+                        }
+                        return;
+                    }
                     handler.postDelayed(this, 300L);
                 }
             };
             handler.post(monitor);
         });
+    }
+
+    private void scheduleProcessRestart(Activity activity, String targetPackage,
+            boolean retryBootstrap) {
+        Intent recoveryIntent = new Intent(activity, LaunchRecoveryActivity.class);
+        recoveryIntent.putExtra(LaunchRecoveryActivity.EXTRA_STALLED_PROCESS_ID,
+                android.os.Process.myPid());
+        recoveryIntent.putExtra(LaunchRecoveryActivity.EXTRA_RETRY_BOOTSTRAP, retryBootstrap);
+        recoveryIntent.putExtra(EXTRA_TARGET_PACKAGE, targetPackage);
+        recoveryIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        activity.startActivity(recoveryIntent);
     }
 
     private static void hideSystemBars(Activity activity) {
@@ -725,4 +789,3 @@ public class BootstrapActivity extends Activity {
         return abi;
     }
 }
-

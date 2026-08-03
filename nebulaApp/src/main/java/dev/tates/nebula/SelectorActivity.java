@@ -163,6 +163,7 @@ public class SelectorActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        LanguageManager.apply(this);
         super.onCreate(savedInstanceState);
         firebaseAuth = FirebaseAuth.getInstance();
         credentialManager = CredentialManager.create(this);
@@ -174,6 +175,60 @@ public class SelectorActivity extends Activity {
         } else {
             showWelcomeUi();
         }
+        handleInnerslothShareIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleInnerslothShareIntent(intent);
+    }
+
+    private void handleInnerslothShareIntent(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())
+                || !"text/plain".equals(intent.getType())) {
+            return;
+        }
+
+        String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
+        if ((sharedText == null || sharedText.trim().isEmpty()) && intent.getClipData() != null
+                && intent.getClipData().getItemCount() > 0) {
+            CharSequence clipText = intent.getClipData().getItemAt(0).coerceToText(this);
+            sharedText = clipText == null ? null : clipText.toString();
+        }
+        intent.setAction(null); // Do not import the same credential again after recreation.
+
+        String accountLink = extractInnerslothAccountLink(sharedText);
+        if (accountLink == null) {
+            NebulaToast.makeText(this, "Nebula can only import links shared from accounts.innersloth.com.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+        AppEntry target = getPrimaryTarget();
+        if (target == null) {
+            NebulaToast.makeText(this, getString(R.string.selector_mods_requires_game), Toast.LENGTH_LONG).show();
+            return;
+        }
+        saveAccountLink(target.packageName, accountLink);
+    }
+
+    private String extractInnerslothAccountLink(String sharedText) {
+        if (sharedText == null) {
+            return null;
+        }
+        for (String candidate : sharedText.trim().split("\\s+")) {
+            try {
+                Uri uri = Uri.parse(candidate);
+                if ("https".equalsIgnoreCase(uri.getScheme())
+                        && "accounts.innersloth.com".equalsIgnoreCase(uri.getHost())) {
+                    return candidate;
+                }
+            } catch (Exception ignored) {
+                // Continue looking in case the share text includes a label before the URL.
+            }
+        }
+        return null;
     }
 
     private void showLauncherUi() {
@@ -229,6 +284,7 @@ public class SelectorActivity extends Activity {
                     textWrap.setOrientation(LinearLayout.VERTICAL);
                     textWrap.setPadding(dp(12), 0, 0, 0);
                     title = new TextView(getContext());
+                    LanguageManager.skip(title);
                     title.setTextColor(0xFFF0F3FF);
                     title.setTextSize(14);
                     title.setTypeface(Typeface.DEFAULT_BOLD);
@@ -239,10 +295,12 @@ public class SelectorActivity extends Activity {
                     textWrap.addView(meta);
                     row.addView(textWrap, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 }
+                LanguageManager.skip(title);
 
                 File file = getItem(position);
                 if (file != null) {
-                    String kind = file.isDirectory() ? "folder" : "file";
+                    String kind = LanguageManager.translate(SelectorActivity.this,
+                            file.isDirectory() ? "folder" : "file").toString();
                     boolean managed = NpkgInstaller.isManagedSharedFile(SelectorActivity.this, file);
                     boolean protectedComponent = isProtectedLauncherComponent(file);
                     title.setText(file.getName());
@@ -279,11 +337,11 @@ public class SelectorActivity extends Activity {
         modsListView.setOnItemClickListener((parent, view, position, id) -> {
             File file = currentModFiles.get(position);
             if (isProtectedLauncherComponent(file)) {
-                Toast.makeText(this, "NebulaCompat is required by Nebula and cannot be removed.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "NebulaCompat is required by Nebula and cannot be removed.", Toast.LENGTH_LONG).show();
                 return;
             }
             if (NpkgInstaller.isManagedSharedFile(this, file)) {
-                Toast.makeText(this, "Uninstall managed mods from the Mod Store.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "Uninstall managed mods from the Mod Store.", Toast.LENGTH_LONG).show();
                 return;
             }
             confirmDeleteMod(file);
@@ -411,9 +469,9 @@ public class SelectorActivity extends Activity {
             int importedCount = importSelectedMods(data);
             refreshModsUi();
             if (importedCount > 0) {
-                Toast.makeText(this, getString(R.string.selector_mods_import_success, importedCount), Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, getString(R.string.selector_mods_import_success, importedCount), Toast.LENGTH_LONG).show();
             } else {
-                Toast.makeText(this, getString(R.string.selector_mods_import_failed), Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, getString(R.string.selector_mods_import_failed), Toast.LENGTH_LONG).show();
             }
         }
 
@@ -480,7 +538,7 @@ public class SelectorActivity extends Activity {
         nebulaAuthPrefs().edit().clear().apply();
         resetAuthCreateFields();
         pendingAuthMessage = reason == null || reason.isEmpty() ? "Please log back in." : reason;
-        Toast.makeText(this, pendingAuthMessage, Toast.LENGTH_LONG).show();
+        NebulaToast.makeText(this, pendingAuthMessage, Toast.LENGTH_LONG).show();
         showWelcomeUi();
     }
 
@@ -497,7 +555,7 @@ public class SelectorActivity extends Activity {
             prefs.edit().clear().apply();
             resetAuthCreateFields();
             pendingAuthMessage = "Please log back in.";
-            Toast.makeText(this, "Please log back in.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Please log back in.", Toast.LENGTH_LONG).show();
             showWelcomeUi();
             return;
         }
@@ -765,7 +823,7 @@ public class SelectorActivity extends Activity {
                             .addOnFailureListener(this, error -> {
                                 Log.w(TAG, "Could not add password provider", error);
                                 continueGoogleLogin(user);
-                                Toast.makeText(this, "Signed in with Google; password was not added.", Toast.LENGTH_LONG).show();
+                                NebulaToast.makeText(this, "Signed in with Google; password was not added.", Toast.LENGTH_LONG).show();
                             }))
                     .setNegativeButton("Google only", (dialog, which) -> continueGoogleLogin(user))
                     .show();
@@ -892,7 +950,7 @@ public class SelectorActivity extends Activity {
         stopAuthLoading();
         saveNebulaSession(user.getUid(), email, username, name, city, idToken, "", true,
                 session.optString("sessionToken", ""), session.optLong("expiresAt", 0L));
-        Toast.makeText(this, "Signed in with Google.", Toast.LENGTH_SHORT).show();
+        NebulaToast.makeText(this, "Signed in with Google.", Toast.LENGTH_SHORT).show();
         showLauncherUiWithSupernovaReveal();
         promptForStorageAccessAfterLogin();
     }
@@ -921,13 +979,13 @@ public class SelectorActivity extends Activity {
         LinearLayout title = new LinearLayout(this);
         title.setOrientation(LinearLayout.VERTICAL);
         title.setGravity(Gravity.CENTER);
-        TextView welcome = text("Welcome to", 20, 0xFFAAB4E8, Typeface.BOLD);
+        TextView welcome = text(getString(R.string.auth_welcome_to), 20, 0xFFAAB4E8, Typeface.BOLD);
         welcome.setGravity(Gravity.CENTER);
         title.addView(welcome);
         title.addView(nebulaWordmark(32, 0xFFFFFFFF, 0xFF22D3EE, Gravity.CENTER));
-        TextView subtitle = text("Your modded Among Us launcher, account link, and mod library in one place.", 14, 0xFFAAB4E8, Typeface.NORMAL);
+        TextView subtitle = text(getString(R.string.auth_welcome_subtitle), 14, 0xFFAAB4E8, Typeface.NORMAL);
         subtitle.setGravity(Gravity.CENTER);
-        Button start = primaryAuthButton("Get Started");
+        Button start = primaryAuthButton(getString(R.string.auth_get_started));
         start.setOnClickListener(v -> showLoginUi());
         authStatusView = authStatus();
         String initialMessage = pendingAuthMessage;
@@ -956,18 +1014,18 @@ public class SelectorActivity extends Activity {
         stopAuthLoading();
         LinearLayout content = authShell();
         View title = nebulaWordmark(32, 0xFFFFFFFF, 0xFF8B5CF6, Gravity.CENTER);
-        TextView subtitle = text("Log in to continue", 14, 0xFFAAB4E8, Typeface.NORMAL);
+        TextView subtitle = text(getString(R.string.auth_login_continue), 14, 0xFFAAB4E8, Typeface.NORMAL);
         subtitle.setGravity(Gravity.CENTER);
-        EditText email = authInput("Email", false);
+        EditText email = authInput(getString(R.string.auth_email), false);
         if (prefillEmail != null && !prefillEmail.trim().isEmpty()) {
             email.setText(prefillEmail.trim());
             email.setSelection(email.getText().length());
         }
-        EditText password = authInput("Password", true);
-        Button login = primaryAuthButton("Log In");
+        EditText password = authInput(getString(R.string.auth_password), true);
+        Button login = primaryAuthButton(getString(R.string.auth_log_in));
         ImageButton google = googleAuthButton();
-        Button create = secondaryAuthButton("Create Account");
-        Button forgot = secondaryAuthButton("Forgot Password");
+        Button create = secondaryAuthButton(getString(R.string.auth_create_account));
+        Button forgot = secondaryAuthButton(getString(R.string.auth_forgot_password));
         authStatusView = authStatus();
 
         login.setOnClickListener(v -> loginNebulaAccount(email.getText().toString(), password.getText().toString()));
@@ -1223,6 +1281,21 @@ public class SelectorActivity extends Activity {
         contentParams.topMargin = dp(18);
         contentParams.bottomMargin = dp(18);
         root.addView(content, contentParams);
+        Button language = new Button(this);
+        language.setAllCaps(false);
+        language.setText(LanguageManager.NAMES[LanguageManager.getIndex(this)] + "  ▾");
+        language.setTextColor(0xFFF0F3FF);
+        language.setTextSize(12);
+        language.setMinWidth(0);
+        language.setMinHeight(0);
+        language.setPadding(dp(12), 0, dp(12), 0);
+        language.setBackground(roundedColor(0xCC202A48, dp(16), 0x334F7CFF, dp(1)));
+        language.setOnClickListener(v -> showLanguageDialog());
+        FrameLayout.LayoutParams languageParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(40), Gravity.TOP | Gravity.RIGHT);
+        languageParams.topMargin = dp(14);
+        languageParams.rightMargin = dp(14);
+        root.addView(language, languageParams);
         if (slideDirection == 0) {
             animateStaggeredChildren((ViewGroup) content, 58);
         } else {
@@ -1420,7 +1493,7 @@ public class SelectorActivity extends Activity {
                 pendingVerificationName = name;
                 pendingVerificationIdToken = idToken;
                 pendingVerificationRefreshToken = refreshToken;
-                Toast.makeText(this, "Verification email sent.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "Verification email sent.", Toast.LENGTH_LONG).show();
                 showVerifyEmailUi();
             });
         });
@@ -1633,7 +1706,7 @@ public class SelectorActivity extends Activity {
                         true,
                         serverSession.optString("sessionToken", ""),
                         serverSession.optLong("expiresAt", 0L));
-                Toast.makeText(this, "Account verified.", Toast.LENGTH_SHORT).show();
+                NebulaToast.makeText(this, "Account verified.", Toast.LENGTH_SHORT).show();
                 resetAuthCreateFields();
                 showLauncherUiWithSupernovaReveal();
                 promptForStorageAccessAfterLogin();
@@ -1732,7 +1805,7 @@ public class SelectorActivity extends Activity {
                     saveNebulaSession(uid, finalEmail, username, name, city, idToken, refreshToken,
                             finalActivated, serverSession.optString("sessionToken", ""),
                             serverSession.optLong("expiresAt", 0L));
-                    Toast.makeText(this, "Logged in successfully.", Toast.LENGTH_SHORT).show();
+                    NebulaToast.makeText(this, "Logged in successfully.", Toast.LENGTH_SHORT).show();
                     showLauncherUiWithSupernovaReveal();
                     promptForStorageAccessAfterLogin();
                 });
@@ -1847,7 +1920,7 @@ public class SelectorActivity extends Activity {
                     NebulaCompatManager.ensureInstalled(this, serverSessionToken);
                 } catch (Exception error) {
                     Log.w(TAG, "Could not download NebulaCompat after login", error);
-                    runOnUiThread(() -> Toast.makeText(this,
+                    runOnUiThread(() -> NebulaToast.makeText(this,
                             "Compatibility support could not be downloaded yet. Nebula will retry automatically.",
                             Toast.LENGTH_LONG).show());
                 }
@@ -1908,7 +1981,7 @@ public class SelectorActivity extends Activity {
                     });
         }
         nebulaAuthPrefs().edit().clear().apply();
-        Toast.makeText(this, "Logged out of Nebula.", Toast.LENGTH_SHORT).show();
+        NebulaToast.makeText(this, "Logged out of Nebula.", Toast.LENGTH_SHORT).show();
         resetAuthCreateFields();
         showWelcomeUi();
     }
@@ -2367,6 +2440,19 @@ public class SelectorActivity extends Activity {
         return root;
     }
 
+    private void showLanguageDialog() {
+        new NebulaDialogBuilder(this)
+                .setTitle(R.string.language_title)
+                .setSingleChoiceItems(LanguageManager.NAMES, LanguageManager.getIndex(this),
+                        (dialog, which) -> {
+                            LanguageManager.setLanguage(this, which);
+                            dialog.dismiss();
+                            recreate();
+                        })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     @Override
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         FrameLayout content = findViewById(android.R.id.content);
@@ -2446,6 +2532,7 @@ public class SelectorActivity extends Activity {
 
         TextView greeting = text("Welcome,", 14, 0xFF8790B9, Typeface.NORMAL);
         TextView user = text(displayNebulaName(), 30, 0xFFFFFFFF, Typeface.BOLD);
+        LanguageManager.skip(user);
         targetStatusView = text("Checking Among Us install...", 12, 0xFF9AA7D6, Typeface.NORMAL);
 
         card.addView(greeting);
@@ -2645,6 +2732,7 @@ public class SelectorActivity extends Activity {
         errorCardView.addView(title);
 
         lastErrorView = text("", 12, 0xFFFFC2C2, Typeface.NORMAL);
+        LanguageManager.skip(lastErrorView);
         LinearLayout.LayoutParams messageParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
@@ -2696,7 +2784,7 @@ public class SelectorActivity extends Activity {
                         choice.dismiss();
                         recreate();
                     } catch (IOException e) {
-                        Toast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setPositiveButton("New profile", null)
@@ -2708,13 +2796,13 @@ public class SelectorActivity extends Activity {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
                 try {
                     if (!ProfileManager.delete(this, ProfileManager.getActiveName(this))) {
-                        Toast.makeText(this, "The Default profile cannot be deleted.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "The Default profile cannot be deleted.", Toast.LENGTH_LONG).show();
                         return;
                     }
                     dialog.dismiss();
                     recreate();
                 } catch (IOException e) {
-                    Toast.makeText(this, "Could not delete profile.", Toast.LENGTH_LONG).show();
+                    NebulaToast.makeText(this, "Could not delete profile.", Toast.LENGTH_LONG).show();
                 }
             });
         });
@@ -2730,7 +2818,7 @@ public class SelectorActivity extends Activity {
                 .setView(input)
                 .setPositiveButton("Create", (dialog, which) -> {
                     if (!ProfileManager.create(this, input.getText().toString())) {
-                        Toast.makeText(this, "Choose a unique profile name.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Choose a unique profile name.", Toast.LENGTH_LONG).show();
                         return;
                     }
                     try {
@@ -2738,7 +2826,7 @@ public class SelectorActivity extends Activity {
                         parent.dismiss();
                         recreate();
                     } catch (IOException e) {
-                        Toast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
+                        NebulaToast.makeText(this, "Could not activate profile.", Toast.LENGTH_LONG).show();
                     }
                 })
                 .setNegativeButton(android.R.string.cancel, null)
@@ -3187,7 +3275,7 @@ public class SelectorActivity extends Activity {
     private void showAccountLinkDialog() {
         AppEntry target = getPrimaryTarget();
         if (target == null) {
-            Toast.makeText(this, getString(R.string.selector_mods_requires_game), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_mods_requires_game), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -3204,7 +3292,7 @@ public class SelectorActivity extends Activity {
         wrap.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(18);
         wrap.setPadding(pad, dp(8), pad, 0);
-        TextView message = text("Open Innersloth, sign in with Google, use Share Link, then paste that link here.", 13, 0xFF334155, Typeface.NORMAL);
+        TextView message = text("Open Innersloth, sign in with Google, then tap Share and choose Nebula. You can also paste the link manually below.", 13, 0xFF334155, Typeface.NORMAL);
         wrap.addView(message);
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -3216,9 +3304,16 @@ public class SelectorActivity extends Activity {
         new NebulaDialogBuilder(this)
                 .setTitle("Nebula account link")
                 .setView(wrap)
-                .setPositiveButton("Save", (dialog, which) -> saveAccountLink(target.packageName, input.getText().toString()))
+                .setPositiveButton("Open Innersloth", (dialog, which) -> openInnerslothAccountsPage())
                 .setNegativeButton(android.R.string.cancel, null)
-                .setNeutralButton("Open Innersloth", (dialog, which) -> openInnerslothAccountsPage())
+                .setNeutralButton("Paste manually", (dialog, which) -> {
+                    String pasted = input.getText().toString();
+                    if (pasted.trim().isEmpty()) {
+                        NebulaToast.makeText(this, "Paste an Innersloth Share Link first.", Toast.LENGTH_LONG).show();
+                    } else {
+                        saveAccountLink(target.packageName, pasted);
+                    }
+                })
                 .show();
     }
 
@@ -3228,7 +3323,7 @@ public class SelectorActivity extends Activity {
             startActivity(intent);
         } catch (Exception e) {
             Log.w(TAG, "Failed to open Innersloth account page", e);
-            Toast.makeText(this, "Could not open the account page.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Could not open the account page.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -3238,7 +3333,7 @@ public class SelectorActivity extends Activity {
             String connectToken = firstNonEmpty(values, "EOSConnectToken", "connectToken", "token", "id_token", "googleToken");
             String userIdToken = firstNonEmpty(values, "EOSToken", "userIdToken", "token", "id_token", "googleToken");
             if (connectToken.isEmpty()) {
-                Toast.makeText(this, "That link did not include an account token.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "That link did not include an account token.", Toast.LENGTH_LONG).show();
                 return;
             }
 
@@ -3251,7 +3346,7 @@ public class SelectorActivity extends Activity {
                     connectExpiresAt);
             if (connectExpiresAt > 0L
                     && connectExpiresAt <= System.currentTimeMillis() / 1000L + 60L) {
-                Toast.makeText(this, "That account link has expired. Generate a new Share Link.", Toast.LENGTH_LONG).show();
+                NebulaToast.makeText(this, "That account link has expired. Generate a new Share Link.", Toast.LENGTH_LONG).show();
                 return;
             }
             String store = firstNonEmpty(values, "store");
@@ -3294,10 +3389,10 @@ public class SelectorActivity extends Activity {
             auth.append("ProfilePath=").append(escapeProperty(Utilities.getPrivateTargetDirectory(this, packageName).getAbsolutePath())).append('\n');
 
             Utilities.writeTextFile(Utilities.getAuthConfigFile(this, packageName), auth.toString());
-            Toast.makeText(this, "Nebula account link saved.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Nebula account link saved.", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             Log.w(TAG, "Failed to save Nebula account link", e);
-            Toast.makeText(this, "Could not save that account link.", Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, "Could not save that account link.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -3681,7 +3776,8 @@ public class SelectorActivity extends Activity {
             modsCountView.setText("0 mods");
             deleteAllModsButton.setEnabled(false);
         } else {
-            modsCountView.setText(currentModFiles.size() + " mods");
+            modsCountView.setText(currentModFiles.size() + " "
+                    + LanguageManager.translate(this, "mods"));
             deleteAllModsButton.setEnabled(hasExternallyAddedMods());
         }
 
@@ -3784,11 +3880,15 @@ public class SelectorActivity extends Activity {
     }
 
     private void showLastErrorDetails() {
+        TextView rawError = text(lastErrorFullText == null || lastErrorFullText.trim().isEmpty()
+                ? "No error details are available."
+                : lastErrorFullText, 13, 0xFFF0F3FF, Typeface.NORMAL);
+        rawError.setTextIsSelectable(true);
+        rawError.setPadding(dp(18), dp(8), dp(18), dp(8));
+        LanguageManager.skip(rawError);
         new NebulaDialogBuilder(this)
                 .setTitle("Error details")
-                .setMessage(lastErrorFullText == null || lastErrorFullText.trim().isEmpty()
-                        ? "No error details are available."
-                        : lastErrorFullText)
+                .setView(rawError)
                 .setPositiveButton(android.R.string.ok, null)
                 .show();
     }
@@ -3812,7 +3912,7 @@ public class SelectorActivity extends Activity {
     private void clearLastError() {
         File errorFile = Utilities.getLastErrorFile(this, "com.innersloth.spacemafia");
         if (errorFile.exists() && !errorFile.delete()) {
-            Toast.makeText(this, getString(R.string.selector_clear_last_error_failed), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_clear_last_error_failed), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -3833,9 +3933,9 @@ public class SelectorActivity extends Activity {
         if (isProtectedLauncherComponent(file)) return;
         if (Utilities.deleteRecursive(file)) {
             FusionRuntimeManager.modsChanged(this);
-            Toast.makeText(this, getString(R.string.selector_mod_deleted, file.getName()), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_mod_deleted, file.getName()), Toast.LENGTH_LONG).show();
         } else {
-            Toast.makeText(this, getString(R.string.selector_mod_delete_failed, file.getName()), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_mod_delete_failed, file.getName()), Toast.LENGTH_LONG).show();
         }
         refreshModsUi();
     }
@@ -3868,9 +3968,9 @@ public class SelectorActivity extends Activity {
         }
         refreshModsUi();
         if (deleted > 0) {
-            Toast.makeText(this, getString(R.string.selector_mod_delete_all_success, deleted), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_mod_delete_all_success, deleted), Toast.LENGTH_LONG).show();
         } else {
-            Toast.makeText(this, getString(R.string.selector_mod_delete_all_failed), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.selector_mod_delete_all_failed), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -3983,5 +4083,4 @@ public class SelectorActivity extends Activity {
     }
 
 }
-
 

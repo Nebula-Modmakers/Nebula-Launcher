@@ -54,8 +54,9 @@ public final class ModStoreActivity extends Activity {
         findViewById(R.id.mod_store_back).setOnClickListener(view -> UiMotion.finish(this, root));
         findViewById(R.id.mod_detail_back).setOnClickListener(view -> showCatalog());
         findViewById(R.id.mod_detail_install).setOnClickListener(view -> {
-            if (selectedMod != null
-                    && NpkgInstaller.getInstalledVersion(this, selectedMod.packageId) != null) {
+            String installedVersion = selectedMod == null ? null
+                    : NpkgInstaller.getInstalledVersion(this, selectedMod.packageId);
+            if (selectedVersion != null && selectedVersion.version.equals(installedVersion)) {
                 confirmUninstall();
             } else {
                 confirmInstall();
@@ -160,6 +161,7 @@ public final class ModStoreActivity extends Activity {
 
         FrameLayout badgeHost = new FrameLayout(this);
         TextView badge = text(mod.badge, 18, Color.WHITE, true);
+        LanguageManager.skip(badge);
         badge.setGravity(Gravity.CENTER);
         badge.setBackgroundResource(R.drawable.bg_nebula_icon);
         badgeHost.addView(badge, new FrameLayout.LayoutParams(
@@ -180,8 +182,12 @@ public final class ModStoreActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         labelsParams.leftMargin = dp(14);
         heading.addView(labels, labelsParams);
-        labels.addView(text(mod.name, 20, 0xFFF0F3FF, true));
-        TextView author = text("by " + mod.author, 13, 0xFF8790B9, false);
+        TextView modName = text(mod.name, 20, 0xFFF0F3FF, true);
+        LanguageManager.skip(modName);
+        labels.addView(modName);
+        TextView author = text(LanguageManager.translate(this, "by ") + " " + mod.author,
+                13, 0xFF8790B9, false);
+        LanguageManager.skip(author);
         author.setPadding(0, dp(3), 0, 0);
         labels.addView(author);
 
@@ -193,7 +199,9 @@ public final class ModStoreActivity extends Activity {
         String installedVersion = NpkgInstaller.getInstalledVersion(this, mod.packageId);
         install.setText(installedVersion == null
                 ? "Install latest  \u2022  " + mod.latest().version
-                : "Uninstall  \u2022  " + installedVersion);
+                : mod.latest().version.equals(installedVersion)
+                    ? "Uninstall  \u2022  " + installedVersion
+                    : "Update  \u2022  " + installedVersion + " \u2192 " + mod.latest().version);
         install.setTransformationMethod(null);
         install.setTextColor(Color.WHITE);
         install.setTextSize(17);
@@ -206,7 +214,8 @@ public final class ModStoreActivity extends Activity {
         install.setOnClickListener(view -> {
             selectedMod = mod;
             selectedVersion = mod.latest();
-            if (NpkgInstaller.getInstalledVersion(this, mod.packageId) != null) {
+            if (selectedVersion.version.equals(
+                    NpkgInstaller.getInstalledVersion(this, mod.packageId))) {
                 confirmUninstall();
             } else {
                 confirmInstall();
@@ -227,8 +236,11 @@ public final class ModStoreActivity extends Activity {
         detailImage.setVisibility(View.GONE);
         loadModImage(mod.imageUrl, detailImage, findViewById(R.id.mod_detail_badge));
         ((TextView) findViewById(R.id.mod_detail_title)).setText(mod.name);
-        ((TextView) findViewById(R.id.mod_detail_author))
-                .setText("by " + mod.author + "  \u2022  Android compatible");
+        LanguageManager.skip(findViewById(R.id.mod_detail_title));
+        TextView detailAuthor = findViewById(R.id.mod_detail_author);
+        detailAuthor.setText(LanguageManager.translate(this, "by ") + " " + mod.author + "  \u2022  "
+                + LanguageManager.translate(this, "Android compatible"));
+        LanguageManager.skip(detailAuthor);
         ((TextView) findViewById(R.id.mod_detail_description)).setText(mod.description);
 
         RadioGroup versions = findViewById(R.id.mod_detail_versions);
@@ -270,9 +282,14 @@ public final class ModStoreActivity extends Activity {
     private void updatePrimaryAction() {
         if (selectedMod == null) return;
         String installedVersion = NpkgInstaller.getInstalledVersion(this, selectedMod.packageId);
-        updateInstallButton(installedVersion == null
-                ? "Install " + selectedMod.name
-                : "Uninstall " + selectedMod.name + "  \u2022  " + installedVersion, true);
+        if (installedVersion == null) {
+            updateInstallButton("Install " + selectedMod.name, true);
+        } else if (selectedVersion != null && selectedVersion.version.equals(installedVersion)) {
+            updateInstallButton("Uninstall " + selectedMod.name + "  \u2022  " + installedVersion, true);
+        } else {
+            updateInstallButton("Install " + selectedMod.name + "  \u2022  "
+                    + selectedVersion.version, true);
+        }
     }
 
     private void loadModImage(String imageUrl, ImageView target, View fallback) {
@@ -398,7 +415,7 @@ public final class ModStoreActivity extends Activity {
                 NpkgInstaller.uninstall(this, mod.packageId);
                 runOnUiThread(() -> {
                     installing = false;
-                    android.widget.Toast.makeText(this, mod.name + " was uninstalled.",
+                    NebulaToast.makeText(this, mod.name + " was uninstalled.",
                             android.widget.Toast.LENGTH_LONG).show();
                     updatePrimaryAction();
                     loadCatalog();
@@ -569,4 +586,3 @@ public final class ModStoreActivity extends Activity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
-

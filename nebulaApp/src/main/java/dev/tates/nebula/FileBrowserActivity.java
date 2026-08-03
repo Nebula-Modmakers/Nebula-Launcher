@@ -98,6 +98,7 @@ public class FileBrowserActivity extends Activity {
                     textWrap.setOrientation(LinearLayout.VERTICAL);
                     textWrap.setPadding(dp(12), 0, 0, 0);
                     name = new TextView(getContext());
+                    LanguageManager.skip(name);
                     name.setTextColor(0xFFF0F3FF);
                     name.setTextSize(15);
                     name.setTypeface(Typeface.DEFAULT_BOLD);
@@ -108,6 +109,7 @@ public class FileBrowserActivity extends Activity {
                     textWrap.addView(meta);
                     row.addView(textWrap, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 }
+                LanguageManager.skip(name);
                 File file = getItem(position);
                 if (file != null) {
                     icon.setImageResource(file.isDirectory() ? R.drawable.ic_nebula_folder : R.drawable.ic_nebula_puzzle);
@@ -160,12 +162,12 @@ public class FileBrowserActivity extends Activity {
         }
 
         if (!isEditableTextFile(entry)) {
-            Toast.makeText(this, getString(R.string.file_browser_file_not_editable), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.file_browser_file_not_editable), Toast.LENGTH_LONG).show();
             return;
         }
 
         if (entry.length() > MAX_EDITABLE_BYTES) {
-            Toast.makeText(this, getString(R.string.file_browser_file_too_large), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.file_browser_file_too_large), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -178,7 +180,7 @@ public class FileBrowserActivity extends Activity {
             content = Utilities.readTextFile(file, MAX_EDITABLE_BYTES);
         } catch (Exception e) {
             Log.e(TAG, "Failed to read editable file", e);
-            Toast.makeText(this, getString(R.string.file_browser_open_failed), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.file_browser_open_failed), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -203,11 +205,11 @@ public class FileBrowserActivity extends Activity {
     private void saveFile(File file, String content) {
         try {
             Utilities.writeTextFile(file, content);
-            Toast.makeText(this, getString(R.string.file_browser_saved, file.getName()), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.file_browser_saved, file.getName()), Toast.LENGTH_LONG).show();
             refreshListing();
         } catch (Exception e) {
             Log.e(TAG, "Failed to save editable file", e);
-            Toast.makeText(this, getString(R.string.file_browser_save_failed), Toast.LENGTH_LONG).show();
+            NebulaToast.makeText(this, getString(R.string.file_browser_save_failed), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -255,4 +257,3 @@ public class FileBrowserActivity extends Activity {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }
-

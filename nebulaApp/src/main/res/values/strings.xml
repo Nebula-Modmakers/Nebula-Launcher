@@ -63,4 +63,15 @@
     <string name="file_browser_save_failed">Could not save this file.</string>
     <string name="file_browser_file_not_editable">This file type is not editable in the built-in browser yet.</string>
     <string name="file_browser_file_too_large">This file is too large for the built-in editor.</string>
+    <string name="language_title">Language</string>
+    <string name="language_description">Choose the language used by Nebula.</string>
+    <string name="auth_welcome_to">Welcome to</string>
+    <string name="auth_welcome_subtitle">Your modded Among Us launcher, account link, and mod library in one place.</string>
+    <string name="auth_get_started">Get Started</string>
+    <string name="auth_login_continue">Log in to continue</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_log_in">Log In</string>
+    <string name="auth_create_account">Create Account</string>
+    <string name="auth_forgot_password">Forgot Password</string>
 </resources>

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <item name="nebula_localization_source" type="id" />
+    <item name="nebula_localization_output" type="id" />
+    <item name="nebula_localization_skip" type="id" />
     <item type="id" name="unitySurfaceView" />
 </resources>

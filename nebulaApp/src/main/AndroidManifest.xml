@@ -18,7 +18,7 @@
       <action android:name="android.support.customtabs.action.CustomTabsService" />
     </intent>
   </queries>
-  <application android:label="@string/app_name" android:icon="@mipmap/app_icon" android:roundIcon="@mipmap/app_icon_round" android:enableOnBackInvokedCallback="true" android:extractNativeLibs="true" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:usesCleartextTraffic="false">
+  <application android:name="dev.tates.nebula.NebulaApplication" android:label="@string/app_name" android:icon="@mipmap/app_icon" android:roundIcon="@mipmap/app_icon_round" android:enableOnBackInvokedCallback="true" android:extractNativeLibs="true" android:allowBackup="false" android:fullBackupContent="false" android:dataExtractionRules="@xml/data_extraction_rules" android:usesCleartextTraffic="false">
     <meta-data android:name="unity.splash-mode" android:value="0" />
     <meta-data android:name="unity.splash-enable" android:value="False" />
     <meta-data android:name="unity.launch-fullscreen" android:value="True" />
@@ -42,12 +42,24 @@
         <category android:name="android.intent.category.LAUNCHER" />
         <action android:name="android.intent.action.MAIN" />
       </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+      </intent-filter>
     </activity>
     <activity
         android:name="dev.allofus.fusioncore.BootstrapActivity"
         android:theme="@style/NebulaTheme"
         android:launchMode="singleTask"
         android:configChanges="orientation|screenSize|smallestScreenSize|keyboardHidden"
+        android:exported="false" />
+    <activity
+        android:name="dev.allofus.fusioncore.LaunchRecoveryActivity"
+        android:theme="@style/NebulaTheme"
+        android:process=":launch_recovery"
+        android:screenOrientation="sensorLandscape"
+        android:excludeFromRecents="true"
         android:exported="false" />
     <activity
         android:name="dev.tates.nebula.SettingsActivity"

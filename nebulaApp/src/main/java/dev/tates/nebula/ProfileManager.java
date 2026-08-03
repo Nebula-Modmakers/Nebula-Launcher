@@ -120,4 +120,3 @@ public final class ProfileManager {
         return cleaned.isEmpty() ? DEFAULT_PROFILE : cleaned;
     }
 }
-

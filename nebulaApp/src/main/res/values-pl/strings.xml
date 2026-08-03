@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Język</string><string name="language_description">Wybierz język używany przez Nebulę.</string>
+ <string name="auth_welcome_to">Witamy w</string><string name="auth_welcome_subtitle">Launcher Among Us z modami, połączenie konta i biblioteka modów w jednym miejscu.</string>
+ <string name="auth_get_started">Rozpocznij</string><string name="auth_login_continue">Zaloguj się, aby kontynuować</string><string name="auth_email">E-mail</string><string name="auth_password">Hasło</string><string name="auth_log_in">Zaloguj się</string><string name="auth_create_account">Utwórz konto</string><string name="auth_forgot_password">Nie pamiętasz hasła?</string>
+</resources>

@@ -134,7 +134,7 @@ public class LicensesActivity extends Activity {
                     runOnUiThread(() -> {
                         view.setEnabled(true);
                         view.setText("Retry License Download");
-                        android.widget.Toast.makeText(this, error.getMessage(),
+                        NebulaToast.makeText(this, error.getMessage(),
                                 android.widget.Toast.LENGTH_LONG).show();
                     });
                 }

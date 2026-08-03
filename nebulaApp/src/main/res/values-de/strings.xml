@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Sprache</string><string name="language_description">Wähle die Sprache für Nebula.</string>
+ <string name="auth_welcome_to">Willkommen bei</string><string name="auth_welcome_subtitle">Dein modifizierter Among-Us-Launcher, Kontoverknüpfung und deine Mod-Bibliothek an einem Ort.</string>
+ <string name="auth_get_started">Loslegen</string><string name="auth_login_continue">Zum Fortfahren anmelden</string><string name="auth_email">E-Mail</string><string name="auth_password">Passwort</string><string name="auth_log_in">Anmelden</string><string name="auth_create_account">Konto erstellen</string><string name="auth_forgot_password">Passwort vergessen</string>
+</resources>

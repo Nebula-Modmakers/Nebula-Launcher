@@ -1,0 +1,5 @@
+<resources>
+ <string name="language_title">Jezik</string><string name="language_description">Izaberite jezik koji Nebula koristi.</string>
+ <string name="auth_welcome_to">Dobro došli u</string><string name="auth_welcome_subtitle">Vaš Among Us pokretač sa modovima, povezivanje naloga i biblioteka modova na jednom mestu.</string>
+ <string name="auth_get_started">Započni</string><string name="auth_login_continue">Prijavite se da nastavite</string><string name="auth_email">E-pošta</string><string name="auth_password">Lozinka</string><string name="auth_log_in">Prijavi se</string><string name="auth_create_account">Napravi nalog</string><string name="auth_forgot_password">Zaboravljena lozinka</string>
+</resources>
