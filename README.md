@@ -103,6 +103,9 @@ The default profile cannot be deleted. Other profiles can be created, selected, 
 
 ## Installing mods
 
+Mod developers who want to add Android ARM64 support should read the
+[Nebula Mod Developer Guide](MOD_DEVELOPER_GUIDE.md).
+
 ### From the mod store
 
 Open **Mod Store**, select a mod card, review its description and available versions, and choose **Install**. Nebula downloads the package, verifies its size and SHA-256 fingerprint, validates its manifest, and installs its files into the active profile.

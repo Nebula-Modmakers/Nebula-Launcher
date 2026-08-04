@@ -3,10 +3,15 @@ package dev.tates.nebula;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,6 +25,8 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -31,6 +38,9 @@ import java.util.concurrent.Executors;
 
 public final class ModStoreActivity extends Activity {
     public static final String EXTRA_MOD_ID = "mod_id";
+    private static final String TAG = "NebulaModStore";
+    private static final int REQUEST_UPLOAD_DLL = 3101;
+    private static final long MAX_CUSTOM_DLL_BYTES = 128L * 1024L * 1024L;
     private static final int MAX_ICON_BYTES = 2 * 1024 * 1024;
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private View root;
@@ -52,6 +62,10 @@ public final class ModStoreActivity extends Activity {
         Utilities.applyWindowInsets(root, 0);
 
         findViewById(R.id.mod_store_back).setOnClickListener(view -> UiMotion.finish(this, root));
+        Button uploadDll = findViewById(R.id.mod_store_upload_dll);
+        uploadDll.setVisibility(View.VISIBLE);
+        uploadDll.setOnClickListener(view -> chooseCustomDll());
+        UiMotion.press(uploadDll);
         findViewById(R.id.mod_detail_back).setOnClickListener(view -> showCatalog());
         findViewById(R.id.mod_detail_install).setOnClickListener(view -> {
             String installedVersion = selectedMod == null ? null
@@ -69,6 +83,110 @@ public final class ModStoreActivity extends Activity {
         loadCatalog();
         UiMotion.enter(root);
         registerPredictiveBack();
+    }
+
+    private void chooseCustomDll() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/octet-stream");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                "application/octet-stream", "application/x-msdownload", "*/*"
+        });
+        startActivityForResult(intent, REQUEST_UPLOAD_DLL);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_UPLOAD_DLL || resultCode != RESULT_OK
+                || data == null || data.getData() == null) {
+            return;
+        }
+        Uri uri = data.getData();
+        worker.execute(() -> importCustomDll(uri));
+    }
+
+    private void importCustomDll(Uri uri) {
+        String fileName = resolveDisplayName(uri);
+        if (fileName == null || !fileName.toLowerCase(Locale.ROOT).endsWith(".dll")) {
+            showImportResult("Choose a .dll file.", false);
+            return;
+        }
+        fileName = sanitizeDllName(fileName);
+        if ("NebulaCompat.dll".equalsIgnoreCase(fileName)) {
+            showImportResult("NebulaCompat cannot be replaced here.", false);
+            return;
+        }
+
+        File profilePlugins = ProfileManager.getActivePlugins(this);
+        File target = new File(profilePlugins, fileName);
+        File sharedTarget = new File(Utilities.getModsDirectory(this), fileName);
+        if (NpkgInstaller.isManagedSharedFile(this, sharedTarget)) {
+            showImportResult("Uninstall the Mod Store version before replacing this DLL.", false);
+            return;
+        }
+        File temporary = new File(profilePlugins, "." + fileName + ".importing");
+        try {
+            if (!profilePlugins.isDirectory() && !profilePlugins.mkdirs()) {
+                throw new IOException("Could not prepare the active profile.");
+            }
+            try (InputStream input = getContentResolver().openInputStream(uri);
+                 FileOutputStream output = new FileOutputStream(temporary, false)) {
+                if (input == null) throw new IOException("Could not open the selected DLL.");
+                byte[] buffer = new byte[64 * 1024];
+                long total = 0;
+                int count;
+                while ((count = input.read(buffer)) != -1) {
+                    total += count;
+                    if (total > MAX_CUSTOM_DLL_BYTES) {
+                        throw new IOException("The selected DLL is larger than 128 MB.");
+                    }
+                    output.write(buffer, 0, count);
+                }
+                output.getFD().sync();
+            }
+            if (target.exists() && !target.delete()) {
+                throw new IOException("Could not replace the existing DLL.");
+            }
+            if (!temporary.renameTo(target)) {
+                Utilities.copyFile(temporary, target);
+                if (!temporary.delete()) Log.w(TAG, "Could not remove temporary DLL");
+            }
+            ProfileManager.stageActive(this);
+            FusionRuntimeManager.modsChanged(this);
+            showImportResult(fileName + " was added to "
+                    + ProfileManager.getActiveName(this) + ".", true);
+        } catch (Exception error) {
+            if (temporary.exists() && !temporary.delete()) {
+                Log.w(TAG, "Could not remove partial DLL import", error);
+            }
+            Log.e(TAG, "Custom DLL import failed", error);
+            showImportResult(error.getMessage() == null
+                    ? "Could not import the selected DLL." : error.getMessage(), false);
+        }
+    }
+
+    private String resolveDisplayName(Uri uri) {
+        try (Cursor cursor = getContentResolver().query(uri,
+                new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (cursor != null && cursor.moveToFirst()) return cursor.getString(0);
+        } catch (Exception error) {
+            Log.w(TAG, "Could not read selected DLL name", error);
+        }
+        return uri.getLastPathSegment();
+    }
+
+    private String sanitizeDllName(String value) {
+        String name = value.replace('\\', '_').replace('/', '_')
+                .replaceAll("[^A-Za-z0-9._ -]", "_");
+        while (name.startsWith(".")) name = name.substring(1);
+        if (name.length() > 120) name = name.substring(name.length() - 120);
+        return name;
+    }
+
+    private void showImportResult(String message, boolean success) {
+        runOnUiThread(() -> NebulaToast.makeText(this, message,
+                success ? android.widget.Toast.LENGTH_SHORT : android.widget.Toast.LENGTH_LONG).show());
     }
 
     private void loadCatalog() {

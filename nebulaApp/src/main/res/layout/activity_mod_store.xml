@@ -50,6 +50,21 @@
                     android:textColor="#8790B9"
                     android:textSize="13sp" />
             </LinearLayout>
+
+            <Button
+                android:id="@+id/mod_store_upload_dll"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_nebula_button"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:text="Upload DLL"
+                android:textAllCaps="false"
+                android:textColor="#F0F3FF"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
         </LinearLayout>
 
         <ScrollView
