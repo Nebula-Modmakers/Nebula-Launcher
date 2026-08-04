@@ -26,7 +26,7 @@ Before installing Nebula, make sure your device meets these requirements:
 
 - **Android 8.0 or newer**
 - A **64-bit ARM device** (`arm64-v8a`)
-- The Android version of **Among Us 2026.3.31**, version code **6804**
+- The Android version of **Among Us 17.4a**
 - Enough free storage for Among Us, the FusionCore runtime, generated IL2CPP files, and your mods
 - Internet access for Nebula account services, runtime preparation, and mod downloads
 - Permission for Nebula to manage the shared FusionCore and mod folders
@@ -156,11 +156,11 @@ The menu provides quick actions such as quitting the game and viewing useful run
 - Ensure the mod is actually compatible with Android IL2CPP.
 - Check the mod's documentation for any known issues or compatibility notes.
 - Make sure you installed the mod correctly (see "Installing mods" section).
-- Confirm the version the mod is compatible with Among Us version 2026.3.31, version code 6804, 17.3a.
+- Confirm the version the mod is compatible with Among Us version 17.4a.
 
 ### Nebula asks me to upgrade or downgrade
 
-Nebula currently requires Among Us **2026.3.31**, version code **6804**. In game, this version appears as 17.3a. A matching version name with a different version code is not accepted.
+Nebula currently requires Among Us 17.4a. A matching version name with a different version code is not accepted.
 
 ### The first launch crashes
 
@@ -180,7 +180,7 @@ The prompt returns until Android reports that Nebula has all-files access. Choos
 
 ### A mod crashes during startup
 
-Disable or remove the newest mod from the active profile, then try again. A plugin appearing in BepInEx logs does not guarantee that every part of it works on Android. If the mod was downloaded from the mod store, make sure it is the correct version for Among Us version 2026.3.31, version code 6804, 17.3a.
+Disable or remove the newest mod from the active profile, then try again. A plugin appearing in BepInEx logs does not guarantee that every part of it works on Android. If the mod was downloaded from the mod store, make sure it is the correct version for Among Us version 17.4a.
 
 ### Online lobbies or accounts do not work
 
@@ -208,7 +208,7 @@ Remove email addresses, account links, bearer tokens, session tokens, device tok
 ## Important limitations
 
 - Nebula currently targets ARM64 Android devices only.
-- Only Among Us 2026.3.31, version code 6804, is supported by this build.
+- Only Among Us 17.4a is supported by this build.
 - Not every desktop Among Us mod can run on Android.
 - Voice-chat and platform-integration mods may start correctly but require additional devices or players for complete testing.
 - First-run IL2CPP generation can use a large amount of memory.
