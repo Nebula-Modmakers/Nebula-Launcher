@@ -4,6 +4,10 @@ Nebula is a native Android launcher for playing modded **Among Us** with Android
 
 It gives you one place to sign in, organize separate mod profiles, install supported mods, manage your files, and launch the Android version of Among Us through FusionCore. 
 
+**Join my community!**
+
+[![](https://dcbadge.limes.pink/api/server/https://discord.gg/cWbGxNeX5f)](https://discord.gg/cWbGxNeX5f)
+
 > [!IMPORTANT]
 > Nebula is currently pre-release software. Expect rough edges, especially during the first modded launch. Back up any files you care about before testing new mods. Nebula operates within a sandboxed environment and should not affect other apps on your device.
 
