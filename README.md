@@ -2,7 +2,7 @@
 
 Nebula is a native Android launcher for playing modded **Among Us** with Android-compatible BepInEx and IL2CPP mods.
 
-It gives you one place to sign in, organize separate mod profiles, install supported mods, manage your files, and launch the Android version of Among Us through FusionCore. 
+It gives you one place to organize separate mod profiles, install supported mods, manage your files, and launch the Android version of Among Us through FusionCore. 
 
 **Join my community!**
 
@@ -15,14 +15,12 @@ It gives you one place to sign in, organize separate mod profiles, install suppo
 
 - A polished, phone-friendly launcher interface
 - Native Android ARM64 mod loading through FusionCore
-- Nebula accounts with automatic session refresh
-- Optional Among Us account linking for the supported online flow
+- Among Us account linking for the supported online flow
 - Separate mod profiles that can be switched before launch
 - An integrated mod store for supported packages
 - Manual import for compatible DLL and ZIP-based mod packages
 - A built-in browser for Nebula and BepInEx files
 - Clearer launch, runtime, and IL2CPP-generation error messages
-- An in-game utility menu opened by triple-tapping the bottom-right edge
 
 ## Requirements
 
@@ -52,7 +50,7 @@ Nebula does not include the Among Us APK. Install the game from a source you are
 9. Select a profile and install any supported mods you want to use.
 10. Press **Launch**.
 
-Android may display warnings because Nebula is installed outside Google Play. Only install APKs obtained from a release you trust.
+Android may display warnings because Nebula is installed outside Google Play. Only install APKs obtained from this github repo or [My Website](NebulaAU.space).
 
 ## The first modded launch
 
@@ -79,16 +77,16 @@ Your Nebula account is used for the launcher and Nebula services. It is separate
 
 Nebula refreshes your saved session whenever the app launches. If the server cannot be reached temporarily, an existing account can receive a limited offline grace period. Deactivated accounts and expired or revoked device sessions must reconnect to the server.
 
-Logging out deletes the device session and deauthorizes your device. Your installed game and mod files are not deleted when you log out. Up to 3 device sessions may be authorized per account.
+Logging out deletes the device session and deauthorizes your device. Your installed game and mod files are not deleted when you log out. 
 
 ## Linking your Among Us account
 
-Nebula includes an account-linking flow for the supported Android online setup. Follow the instructions shown in **Settings** and paste the returned link into Nebula when requested.
+Nebula includes an account-linking flow for online play. Follow the instructions shown in **Settings** and paste the returned link into Nebula when requested.
 
 Account linking and the Nebula launcher login serve different purposes:
 
 - Your **Nebula account** signs you into the launcher.
-- Your **Among Us account link** supplies game-side identity information for the supported online flow.
+- Your **Among Us account link** supplies game-side identity information for online Among Us.
 
 Treat account links and tokens as private information. Do not post them in issues, screenshots, Discord messages, or public logs.
 
@@ -126,7 +124,7 @@ Only use mods that explicitly support:
 - FusionCore
 - Your exact Among Us version
 
-A Windows mod DLL is not compatible with Android. Mods can initialize successfully while still having broken menus, networking, native calls, asset loading, or gameplay behavior. Verify that the mod you are installing is compatible with Android before installing it. Mods within the mod store are verified to be compatible with Android.
+A Windows mod DLL is not always compatible with Android. Mods can initialize successfully while still having broken menus, networking, native calls, asset loading, or gameplay behavior. Verify that the mod you are installing is compatible with Android before installing it. Mods within the mod store are verified to be compatible with Android, though unexpected bugs may occur.
 
 
 ## Files and storage
@@ -142,12 +140,6 @@ This area contains the shared BepInEx runtime, configuration, active plugins, ge
 Nebula also keeps private application data for accounts, profiles, prepared Unity data, and launch state. Uninstalling Nebula can remove its private data. Shared files may remain depending on your Android version and storage behavior.
 
 The built-in file browser is intended for inspecting Nebula and mod-related files. It only edits supported text files and refuses files that are too large for the editor.
-
-## In-game utility menu
-
-While Among Us is running through Nebula, triple-tap the **bottom-right edge** of the screen to open the utility menu.
-
-The menu provides quick actions such as quitting the game and viewing useful runtime information. The normal Android status bar remains hidden in game, and the game is forced into landscape orientation.
 
 ## Troubleshooting
 
@@ -176,7 +168,7 @@ Nebula should return to the login screen after an authentication error. Check yo
 
 ### The loading animation never finishes during game launch
 
-If on first launch, this is expected. The first launch takes a while as Nebula is generating the IL2CPP files for Among Us. Subsequent launches should be faster. If it takes more than a few minutes, try restarting Nebula.
+If on first launch, this is expected. The first launch takes a while as Nebula is generating the IL2CPP files for Among Us. Subsequent launches should be faster. If it takes more than a few minutes, try restarting Nebula. If this isn't on the first launch, this is a known bug. Closing the app and retrying launch should remedy the issue. If the issue persists, file a bug report.
 
 ### Storage access keeps appearing
 
@@ -196,7 +188,7 @@ Disable or remove the newest mod from the active profile, then try again. A plug
 
 ## Reporting a problem
 
-When opening an issue, include:
+When opening an issue, nebula includes:
 
 - Your phone model
 - Android version
@@ -205,9 +197,8 @@ When opening an issue, include:
 - Active profile and installed mod versions
 - Whether the failure happens before or after the Among Us menu appears
 - The relevant BepInEx log
-- Clear steps that reproduce the problem
 
-Remove email addresses, account links, bearer tokens, session tokens, device tokens, and other private credentials before attaching logs.
+Email addresses, account links, bearer tokens, session tokens, device tokens, and other private credentials are not included in bug reports.
 
 ## Important limitations
 
